@@ -1,6 +1,10 @@
-.env
-.cache
-log.txt
+.git
 __pycache__
 *.pyc
+.env
+log.txt
 downloads
+cache
+*.zip
+.idea
+.vscode

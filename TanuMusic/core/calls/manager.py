@@ -2,7 +2,8 @@ import asyncio
 from ntgcalls import ConnectionNotFound, TelegramServerError
 from pytgcalls import PyTgCalls, exceptions, types
 from pytgcalls.pytgcalls_session import PyTgCallsSession
-from TanuMusic import logger, userbot
+from TanuMusic import logger
+import TanuMusic
 
 class CallsManager:
     def __init__(self, controller):
@@ -10,6 +11,12 @@ class CallsManager:
 
     async def boot(self) -> None:
         PyTgCallsSession.notice_displayed = True
+        # Fresh userbot lo - __init__.py wala None nahi
+        userbot = TanuMusic.userbot
+        if not userbot:
+            from TanuMusic import userbot as ub
+            userbot = ub
+        
         for ub in userbot.clients:
             client = PyTgCalls(ub, cache_duration=100)
             await client.start()

@@ -29,14 +29,12 @@ logging.getLogger("spotipy.client").setLevel(logging.CRITICAL)
 
 logger = logging.getLogger("TanuMusic")
 
-
 def _asyncio_exception_handler(loop: asyncio.AbstractEventLoop, context: dict) -> None:
     exc = context.get("exception")
     if isinstance(exc, ChannelInvalid):
         logger.warning("Ignoring CHANNEL_INVALID update (channel probably removed).")
         return
     loop.default_exception_handler(context)
-
 
 asyncio.get_event_loop().set_exception_handler(_asyncio_exception_handler)
 
@@ -46,6 +44,10 @@ from config import Config
 
 config = Config()
 config.check()
+
+# FIX: queue ko sabse pehle banao taaki circular import na ho
+from TanuMusic.helpers import Queue
+queue = Queue()
 
 tasks: List = []
 boot: float = time.time()
@@ -75,12 +77,8 @@ spotify = Spotify()
 from TanuMusic.core.preload import PreloadManager
 preload = PreloadManager()
 
-from TanuMusic.helpers import Queue
-queue = Queue()
-
 from TanuMusic.core.calls import TgCall
 tune = TgCall()
-
 
 async def stop() -> None:
     logger.info("Stopping bot...")

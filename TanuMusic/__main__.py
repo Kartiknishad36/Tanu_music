@@ -1,5 +1,6 @@
 import asyncio
 import importlib
+import pathlib
 import sys
 from pyrogram import idle
 
@@ -17,7 +18,6 @@ from TanuMusic.helpers import Queue
 from TanuMusic.core.calls import TgCall
 import TanuMusic
 
-# --- Core Init (circular free) ---
 ensure_dirs()
 app = Bot()
 userbot = Userbot()
@@ -30,7 +30,6 @@ queue = Queue()
 tune = TgCall()
 preload = PreloadManager()
 
-# Baaki purani files `from TanuMusic import app` kar sake isliye inject kar do
 TanuMusic.app = app
 TanuMusic.userbot = userbot
 TanuMusic.db = db
@@ -41,28 +40,52 @@ TanuMusic.spotify = spotify
 TanuMusic.queue = queue
 TanuMusic.tune = tune
 TanuMusic.preload = preload
-TanuMusic.config = config
-TanuMusic.logger = logger
+
+def load_plugins():
+    count = 0
+    for path in pathlib.Path("TanuMusic/plugins").glob("*.py"):
+        if path.name.startswith("_"):
+            continue
+        try:
+            importlib.import_module(f"TanuMusic.plugins.{path.stem}")
+            count += 1
+        except Exception as e:
+            logger.error(f"Failed to load {path.stem}: {e}")
+    logger.info(f"Loaded {count} plugins")
+
+async def stop():
+    logger.info("Stopping bot...")
+    for task in tasks:
+        task.cancel()
+        try:
+            await task
+        except:
+            pass
+    try:
+        await app.exit()
+    except: pass
+    try:
+        await userbot.exit()
+    except: pass
+    try:
+        await db.close()
+    except: pass
 
 async def main():
     await db.connect()
-    
+    await lang.load()
     await app.boot()
     await userbot.boot()
     await tune.boot()
     
-    # Load plugins
-    from TanuMusic.core.plugins import load_plugins
-    await load_plugins()
+    load_plugins()
 
     logger.info("TanuMusic Started Successfully!")
     await idle()
-
-    await TanuMusic.stop()
+    await stop()
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
         sys.exit(0)

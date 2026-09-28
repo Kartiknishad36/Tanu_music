@@ -46,7 +46,6 @@ TanuMusic.logger = logger
 
 async def main():
     await db.connect()
-    await lang.load()
     
     await app.boot()
     await userbot.boot()

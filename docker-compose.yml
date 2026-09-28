@@ -1,0 +1,5 @@
+services:
+  tanu:
+    build: .
+    env_file: .env
+    restart: unless-stopped

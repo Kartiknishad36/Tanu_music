@@ -7,7 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Bookworm is current Debian — avoids Buster 404 errors
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         ffmpeg \
@@ -18,8 +17,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 

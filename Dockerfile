@@ -1,9 +1,13 @@
-FROM python:3.13-slim
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg git \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-RUN apt-get update -y \
- && apt-get install -y --no-install-recommends ffmpeg curl unzip git \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt ./
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-CMD ["bash", "start"]
+
+CMD ["python3", "-m", "TanuMusic"]

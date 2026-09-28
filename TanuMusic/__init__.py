@@ -30,3 +30,15 @@ config.check()
 
 tasks: List = []
 boot: float = time.time()
+
+# Placeholders taaki `from TanuMusic import userbot` fail na ho
+app = None
+userbot = None
+db = None
+lang = None
+tg = None
+yt = None
+spotify = None
+queue = None
+tune = None
+preload = None

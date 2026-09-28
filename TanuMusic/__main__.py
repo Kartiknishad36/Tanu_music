@@ -3,80 +3,67 @@ import importlib
 import sys
 from pyrogram import idle
 
-if sys.platform != "win32":
-    try:
-        import resource
+from TanuMusic import config, logger, tasks, boot
+from TanuMusic.core.bot import Bot
+from TanuMusic.core.userbot import Userbot
+from TanuMusic.core.mongo import MongoDB
+from TanuMusic.core.lang import Language
+from TanuMusic.core.dir import ensure_dirs
+from TanuMusic.core.telegram import Telegram
+from TanuMusic.core.youtube import YouTube
+from TanuMusic.core.spotify import Spotify
+from TanuMusic.core.preload import PreloadManager
+from TanuMusic.helpers import Queue
+from TanuMusic.core.calls import TgCall
+import TanuMusic
 
-        _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-        _target = min(65536, _hard)
-        if _soft < _target:
-            resource.setrlimit(resource.RLIMIT_NOFILE, (_target, _hard))
-    except Exception:
-        pass
+# --- Core Init (circular free) ---
+ensure_dirs()
+app = Bot()
+userbot = Userbot()
+db = MongoDB()
+lang = Language()
+tg = Telegram()
+yt = YouTube()
+spotify = Spotify()
+queue = Queue()
+tune = TgCall()
+preload = PreloadManager()
 
-from TanuMusic import tune, app, config, db, logger, stop, userbot, yt
-from TanuMusic.plugins import all_modules
-
+# Baaki purani files `from TanuMusic import app` kar sake isliye inject kar do
+TanuMusic.app = app
+TanuMusic.userbot = userbot
+TanuMusic.db = db
+TanuMusic.lang = lang
+TanuMusic.tg = tg
+TanuMusic.yt = yt
+TanuMusic.spotify = spotify
+TanuMusic.queue = queue
+TanuMusic.tune = tune
+TanuMusic.preload = preload
+TanuMusic.config = config
+TanuMusic.logger = logger
 
 async def main():
-    try:
-        await db.connect()
+    await db.connect()
+    await lang.load()
+    
+    await app.boot()
+    await userbot.boot()
+    await tune.boot()
+    
+    # Load plugins
+    from TanuMusic.core.plugins import load_plugins
+    await load_plugins()
 
-        await app.boot()
-        await userbot.boot()
+    logger.info("TanuMusic Started Successfully!")
+    await idle()
 
-        if not userbot.clients:
-            logger.error(
-                "No assistant started. Set STRING_SESSION in env. Music will not play."
-            )
-        else:
-            await tune.boot()
-
-        loaded = 0
-        for module in all_modules:
-            try:
-                importlib.import_module(f"TanuMusic.plugins.{module}")
-                loaded += 1
-            except Exception as e:
-                logger.error(f"Failed to load plugin {module}: {e}", exc_info=True)
-        logger.info(f"Loaded {loaded}/{len(all_modules)} plugin modules.")
-
-        if config.COOKIES_URL:
-            try:
-                await yt.save_cookies(config.COOKIES_URL)
-            except Exception as e:
-                logger.error(f"Failed to download cookies: {e}")
-
-        try:
-            sudoers = await db.get_sudoers()
-            app.sudoers.update(sudoers)
-            try:
-                app.sudo_filter.update(list(app.sudoers))
-            except Exception:
-                app.sudo_filter = __import__("pyrogram").filters.user(list(app.sudoers))
-        except Exception as e:
-            logger.warning(f"Sudo load warning: {e}")
-
-        try:
-            bl = await db.get_blacklisted()
-            try:
-                app.bl_users.update(bl)
-            except Exception:
-                app.bl_users = __import__("pyrogram").filters.user(bl or [0])
-        except Exception as e:
-            logger.warning(f"Blacklist load warning: {e}")
-
-        logger.info(f"Loaded {len(app.sudoers)} sudo users.")
-        logger.info("Bot started successfully! Ready to play music.")
-
-        try:
-            await idle()
-        except KeyboardInterrupt:
-            logger.info("Stop signal received...")
-    finally:
-        await stop()
-
+    await TanuMusic.stop()
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+        sys.exit(0)

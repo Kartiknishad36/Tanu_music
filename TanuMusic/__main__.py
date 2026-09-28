@@ -1,6 +1,3 @@
-# ===============================================================================
-# __main__.py - Entry Point
-# ===============================================================================
 import asyncio
 import importlib
 import sys
@@ -9,6 +6,7 @@ from pyrogram import idle
 if sys.platform != "win32":
     try:
         import resource
+
         _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
         _target = min(65536, _hard)
         if _soft < _target:
@@ -16,23 +14,32 @@ if sys.platform != "win32":
     except Exception:
         pass
 
-from TanuMusic import (tune, app, config, db, logger, stop, userbot, yt)
+from TanuMusic import tune, app, config, db, logger, stop, userbot, yt
 from TanuMusic.plugins import all_modules
 
 
 async def main():
     try:
         await db.connect()
+
         await app.boot()
         await userbot.boot()
-        await tune.boot()
 
+        if not userbot.clients:
+            logger.error(
+                "No assistant started. Set STRING_SESSION in env. Music will not play."
+            )
+        else:
+            await tune.boot()
+
+        loaded = 0
         for module in all_modules:
             try:
                 importlib.import_module(f"TanuMusic.plugins.{module}")
+                loaded += 1
             except Exception as e:
                 logger.error(f"Failed to load plugin {module}: {e}", exc_info=True)
-        logger.info(f"Loaded {len(all_modules)} plugin modules.")
+        logger.info(f"Loaded {loaded}/{len(all_modules)} plugin modules.")
 
         if config.COOKIES_URL:
             try:
@@ -40,34 +47,36 @@ async def main():
             except Exception as e:
                 logger.error(f"Failed to download cookies: {e}")
 
-        sudoers = await db.get_sudoers()
-        app.sudoers.update(sudoers)
-        app.sudo_filter.update(sudoers)
-        app.bl_users.update(await db.get_blacklisted())
+        try:
+            sudoers = await db.get_sudoers()
+            app.sudoers.update(sudoers)
+            try:
+                app.sudo_filter.update(list(app.sudoers))
+            except Exception:
+                app.sudo_filter = __import__("pyrogram").filters.user(list(app.sudoers))
+        except Exception as e:
+            logger.warning(f"Sudo load warning: {e}")
+
+        try:
+            bl = await db.get_blacklisted()
+            try:
+                app.bl_users.update(bl)
+            except Exception:
+                app.bl_users = __import__("pyrogram").filters.user(bl or [0])
+        except Exception as e:
+            logger.warning(f"Blacklist load warning: {e}")
+
         logger.info(f"Loaded {len(app.sudoers)} sudo users.")
-        logger.info("Bot started successfully! Ready to play music!")
+        logger.info("Bot started successfully! Ready to play music.")
 
         try:
             await idle()
         except KeyboardInterrupt:
-            logger.info("Received stop signal...")
-        except Exception as e:
-            logger.error(f"Error during idle: {e}", exc_info=True)
-
+            logger.info("Stop signal received...")
+    finally:
         await stop()
-    except Exception as e:
-        logger.error(f"Critical error in main: {e}", exc_info=True)
-        raise
 
 
 if __name__ == "__main__":
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    except SystemExit as e:
-        logger.error(f"Bot exited: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}", exp_info=True)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

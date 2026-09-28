@@ -91,11 +91,20 @@
   "lang_menu_title": "Select language:",
   "lang_success": "Language set to {}",
   "lang_admin_only": "Admins only.",
-  "play_queued": "Queued at position {}",
+  "play_emoji": "🎵",
+  "play_searching": "{} Searching...",
+  "play_usage": "Usage: /play <song name or URL>\nOr reply to audio/video with /play",
+  "play_user_invalid": "Invalid user.",
+  "play_chat_invalid": "Use only in supergroups.",
+  "play_queue_full": "Queue is full (max {}).",
+  "play_video_disabled": "Video play is disabled.",
+  "play_unsupported": "Unsupported link.",
+  "play_invite_error": "Invite error: {}",
+  "play_queued": "Queued at position <b>{}</b>",
   "play_now": "Now playing: <b>{}</b>",
   "play_processing": "Processing...",
   "play_downloading": "Downloading...",
   "play_no_results": "No results found.",
   "play_error": "Play error: {}",
-  "play_usage": "Usage: /play <song name or URL>"
+  "play_admin_only": "Only admins can play in this chat."
 }

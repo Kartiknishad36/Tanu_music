@@ -51,6 +51,7 @@ HELP_TEXTS = {
         "/song <name> — download MP3 to chat\n"
         "/radio — radio list\n"
         "/radio lofi|pop|dance|rock|jazz\n"
+        "/sg @user | id | reply — full TG info + history\n"
         "/id — user & chat id\n"
         "/reload — reload admin cache\n"
         "/replay — replay current track\n"
@@ -79,6 +80,7 @@ HELP_TEXTS = {
         "/activevc — active voice chats\n"
         "/lang — language\n"
         "/id — ids\n"
+        "/sg — user scan + history\n"
         "/alive — status"
     ),
     "help_sudo": (

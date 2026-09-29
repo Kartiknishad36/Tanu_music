@@ -37,7 +37,9 @@ class Userbot:
         try:
             await client.start()
         except FloodWait as e:
-            logger.error(f"Assistant {num} FloodWait {e.value}s — skip this start")
+            logger.error(
+                f"Assistant {num} FloodWait {e.value}s — skip this start"
+            )
             return
         except Exception as e:
             logger.error(f"Assistant {num} failed to start: {e}")
@@ -53,7 +55,19 @@ class Userbot:
         logger.info(
             f"Assistant {num} started as @{client.username or client.id}"
         )
-        # No log-group message here — bot sends one combined ONLINE msg
+
+        # Optional separate log line (also listed in combined ONLINE)
+        try:
+            from TanuMusic import app
+
+            if app.logger:
+                uname = f"@{client.username}" if client.username else str(client.id)
+                await app.send_message(
+                    app.logger,
+                    f"🎧 <b>Assistant {num} Started</b>\n• {uname}\n• ID: <code>{client.id}</code>",
+                )
+        except Exception as e:
+            logger.warning(f"Assistant {num} log msg failed: {e}")
 
     async def boot(self):
         if self.one:

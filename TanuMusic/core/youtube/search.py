@@ -3,6 +3,7 @@ from typing import Optional, List
 
 from TanuMusic import logger
 from TanuMusic.helpers import Track
+from TanuMusic.core.youtube.ydl_opts import search_opts, base_opts
 
 try:
     import yt_dlp
@@ -14,24 +15,11 @@ class Searcher:
     def __init__(self, cookies):
         self._cookies = cookies
 
-    def _ydl_opts(self) -> dict:
-        opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "noplaylist": True,
-            "default_search": "ytsearch",
-            "skip_download": True,
-            "geo_bypass": True,
-            "nocheckcertificate": True,
-        }
-        # Only set cookiefile when a real path exists
+    def _cookie(self) -> Optional[str]:
         try:
-            cookie = self._cookies.get_cookies() if self._cookies else None
+            return self._cookies.get_cookies() if self._cookies else None
         except Exception:
-            cookie = None
-        if cookie:
-            opts["cookiefile"] = cookie
-        return opts
+            return None
 
     async def search(self, query: str, m_id: int, music: bool = False) -> Optional[Track]:
         if not yt_dlp:
@@ -42,43 +30,81 @@ class Searcher:
         if not q:
             return None
 
-        # Text search: force ytsearch1 so we always get a video id
-        if not q.startswith("http://") and not q.startswith("https://"):
-            if music and "audio" not in q.lower():
-                q = f"{q} official audio"
+        is_url = q.startswith("http://") or q.startswith("https://")
+        if not is_url:
             search_q = f"ytsearch1:{q}"
         else:
             search_q = q
 
-        def _run():
-            with yt_dlp.YoutubeDL(self._ydl_opts()) as ydl:
-                return ydl.extract_info(search_q, download=False)
+        cookie = self._cookie()
 
+        async def _extract(opts: dict):
+            def _run():
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    return ydl.extract_info(search_q, download=False)
+
+            return await asyncio.to_thread(_run)
+
+        info = None
+        errors = []
+
+        # Attempt 1: full opts + cookies
         try:
-            info = await asyncio.to_thread(_run)
+            info = await _extract(search_opts(cookie))
         except Exception as e:
+            errors.append(str(e))
             logger.error(f"YouTube search failed for '{query}': {e}")
-            # Retry once without cookies
+
+        # Attempt 2: android-only, no cookies
+        if not info:
             try:
+                opts = base_opts(None, download=False)
+                opts["extractor_args"] = {
+                    "youtube": {"player_client": ["android", "ios"]}
+                }
+                info = await _extract(opts)
+            except Exception as e:
+                errors.append(str(e))
+                logger.error(f"YouTube search retry failed: {e}")
 
-                def _run2():
-                    opts = {
-                        "quiet": True,
-                        "no_warnings": True,
-                        "noplaylist": True,
-                        "default_search": "ytsearch",
-                        "skip_download": True,
-                        "geo_bypass": True,
-                    }
+        # Attempt 3: flat ytsearch (metadata only, no player)
+        if not info and not is_url:
+            try:
+                opts = {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "extract_flat": "in_playlist",
+                    "default_search": "ytsearch",
+                    "skip_download": True,
+                }
+
+                def _flat():
                     with yt_dlp.YoutubeDL(opts) as ydl:
-                        return ydl.extract_info(search_q, download=False)
+                        return ydl.extract_info(f"ytsearch5:{q}", download=False)
 
-                info = await asyncio.to_thread(_run2)
-            except Exception as e2:
-                logger.error(f"YouTube search retry failed: {e2}")
-                return None
+                flat = await asyncio.to_thread(_flat)
+                if flat and flat.get("entries"):
+                    e0 = next((e for e in flat["entries"] if e), None)
+                    if e0 and e0.get("id"):
+                        info = {
+                            "id": e0["id"],
+                            "title": e0.get("title") or q,
+                            "duration": e0.get("duration") or 0,
+                            "uploader": e0.get("uploader") or "YouTube",
+                            "webpage_url": e0.get("url")
+                            or f"https://www.youtube.com/watch?v={e0['id']}",
+                            "thumbnail": (e0.get("thumbnails") or [{}])[-1].get("url", "")
+                            if e0.get("thumbnails")
+                            else "",
+                            "view_count": e0.get("view_count") or "",
+                            "is_live": bool(e0.get("is_live")),
+                        }
+            except Exception as e:
+                errors.append(str(e))
+                logger.error(f"Flat search failed: {e}")
 
         if not info:
+            logger.error(f"All search methods failed for '{query}': {errors}")
             return None
 
         if "entries" in info:
@@ -99,7 +125,7 @@ class Searcher:
         if thumbs:
             thumb = thumbs[-1].get("url", "") or ""
         elif info.get("thumbnail"):
-            thumb = info.get("thumbnail")
+            thumb = info.get("thumbnail") or ""
 
         from TanuMusic.helpers import utils as u
 
@@ -120,8 +146,10 @@ class Searcher:
         if not yt_dlp:
             return []
 
+        cookie = self._cookie()
+
         def _run():
-            opts = self._ydl_opts()
+            opts = search_opts(cookie)
             opts["extract_flat"] = "in_playlist"
             opts.pop("noplaylist", None)
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -148,7 +176,9 @@ class Searcher:
                     Track(
                         id=data.get("id") or "",
                         channel_name=data.get("uploader") or data.get("channel") or "",
-                        duration=u.format_duration(duration_sec) if duration_sec else "0:00",
+                        duration=u.format_duration(duration_sec)
+                        if duration_sec
+                        else "0:00",
                         duration_sec=duration_sec,
                         title=(data.get("title") or "Unknown")[:80],
                         url=data.get("url")

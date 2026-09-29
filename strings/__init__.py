@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 import yaml
 
@@ -27,7 +26,7 @@ for filename in os.listdir(r"./strings/langs/"):
         for item in languages["en"]:
             if item not in languages[language_name]:
                 languages[language_name][item] = languages["en"][item]
-    try:
-        languages_present[language_name] = languages[language_name]["name"]
-    except Exception:
-        print("There is some issue with the language file inside bot.")
+        try:
+            languages_present[language_name] = languages[language_name]["name"]
+        except Exception:
+            print("Issue with language file:", filename)

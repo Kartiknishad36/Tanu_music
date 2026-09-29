@@ -1,130 +1,59 @@
 import asyncio
 import importlib
-import sys
+
 from pyrogram import idle
-from pyrogram.errors import FloodWait
+from pytgcalls.exceptions import NoActiveGroupCall
 
-if sys.platform != "win32":
+import config
+from TanuMusic import LOGGER, app, userbot
+from TanuMusic.core.call import BABY
+from TanuMusic.misc import sudo
+from TanuMusic.plugins import ALL_MODULES
+from TanuMusic.utils.database import get_banned_users, get_gbanned
+from config import BANNED_USERS
+
+
+async def init():
+    if (
+        not config.STRING1
+        and not config.STRING2
+        and not config.STRING3
+        and not config.STRING4
+        and not config.STRING5
+    ):
+        LOGGER(__name__).error("String Session Not Filled, Please Fill A Pyrogram Session")
+        exit()
+    await sudo()
     try:
-        import resource
-
-        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-        target = min(65536, hard)
-        if soft < target:
-            resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+        users = await get_gbanned()
+        for user_id in users:
+            BANNED_USERS.add(user_id)
+        users = await get_banned_users()
+        for user_id in users:
+            BANNED_USERS.add(user_id)
     except Exception:
         pass
-
-from TanuMusic import (
-    app,
-    config,
-    db,
-    logger,
-    stop,
-    tune,
-    userbot,
-    yt,
-)
-from TanuMusic.plugins import all_modules
-
-
-async def main():
+    await app.start()
+    for all_module in ALL_MODULES:
+        importlib.import_module("TanuMusic.plugins" + all_module)
+    LOGGER("TanuMusic.plugins").info("All Features Loaded — Tanu Music")
+    await userbot.start()
+    await BABY.start()
     try:
-        await db.connect()
-
-        await app.boot()
-        await userbot.boot()
-
-        if not userbot.clients:
-            logger.error(
-                "No assistant started. Check STRING_SESSION in Railway variables."
-            )
-        else:
-            try:
-                await tune.boot()
-            except Exception as e:
-                logger.error(f"PyTgCalls boot failed: {e}")
-
-        # Combined ONLINE (bot + assistants) — throttled in Mongo
-        try:
-            await app.send_online_log(userbot.clients)
-        except Exception as e:
-            logger.warning(f"Online log: {e}")
-
-        loaded = 0
-        for module in all_modules:
-            try:
-                importlib.import_module(f"TanuMusic.plugins.{module}")
-                loaded += 1
-            except Exception as e:
-                logger.error(f"Failed to load plugin {module}: {e}")
-        logger.info(f"Loaded {loaded}/{len(all_modules)} plugins")
-
-        if getattr(config, "COOKIES_URL", None):
-            try:
-                await yt.save_cookies(config.COOKIES_URL)
-            except Exception as e:
-                logger.error(f"Cookies download failed: {e}")
-
-        try:
-            sudoers = await db.get_sudoers()
-            app.sudoers.update(sudoers or [])
-            try:
-                app.sudo_filter.update(list(app.sudoers))
-            except Exception:
-                import pyrogram
-
-                app.sudo_filter = pyrogram.filters.user(list(app.sudoers))
-        except Exception as e:
-            logger.warning(f"Sudo load: {e}")
-
-        try:
-            bl = await db.get_blacklisted()
-            try:
-                app.bl_users.update(bl or [])
-            except Exception:
-                import pyrogram
-
-                app.bl_users = pyrogram.filters.user(bl or [0])
-        except Exception as e:
-            logger.warning(f"Blacklist load: {e}")
-
-        logger.info(f"Sudo users: {len(app.sudoers)}")
-        logger.info("Tanu Music started successfully — ready!")
-
-        await idle()
-    except FloodWait as e:
-        wait = int(getattr(e, "value", 60) or 60) + 10
-        logger.error(
-            "FloodWait %ss — sleeping in-process (do not redeploy).",
-            wait,
+        await BABY.stream_call("https://te.legra.ph/file/29f784eb49d230ab62e9e.mp4")
+    except NoActiveGroupCall:
+        LOGGER("TanuMusic").warning(
+            "Log group VC not active — bot continues (start VC in LOGGER group for full features)."
         )
-        await asyncio.sleep(wait)
-        try:
-            await app.boot()
-            await idle()
-        except Exception as e2:
-            logger.error("Retry after FloodWait failed: %s", e2)
-    except KeyboardInterrupt:
-        logger.info("Stop signal received")
-    except Exception as e:
-        logger.exception("Fatal error: %s", e)
-        await asyncio.sleep(60)
-        raise
-    finally:
-        try:
-            await stop()
-        except Exception:
-            pass
+    except Exception:
+        pass
+    await BABY.decorators()
+    LOGGER("TanuMusic").info("Tanu Music started successfully")
+    await idle()
+    await app.stop()
+    await userbot.stop()
+    LOGGER("TanuMusic").info("Tanu Music stopped.")
 
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(main())
-    finally:
-        try:
-            loop.close()
-        except Exception:
-            pass
+    asyncio.get_event_loop().run_until_complete(init())

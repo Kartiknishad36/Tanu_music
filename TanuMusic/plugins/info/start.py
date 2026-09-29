@@ -14,7 +14,7 @@ async def _help(_, m: types.Message):
 
     caption = m.lang.get(
         "help_menu",
-        "<b>Click the buttons below for command info.</b>\nAll commands work with /",
+        "<b>Tanu Music — Help</b>\nClick buttons below. All commands use /",
     )
     try:
         await m.reply_photo(
@@ -26,57 +26,82 @@ async def _help(_, m: types.Message):
         await m.reply_text(text=caption, reply_markup=buttons.help_markup(m.lang))
 
 
+HELP_TEXTS = {
+    "help": (
+        "<b>📖 Tanu Music Help</b>\n\n"
+        "Choose a category below.\n"
+        "All commands work with <code>/</code>"
+    ),
+    "help_play": (
+        "<b>🎵 Play</b>\n\n"
+        "/play <song> — play audio in VC\n"
+        "/vplay <song> — play video in VC\n"
+        "/pause /resume /skip /stop\n"
+        "/queue — show queue\n"
+        "/loop 0|1|queue — loop mode\n"
+        "/seek <sec> — seek position"
+    ),
+    "help_extra": (
+        "<b>✨ Extra features</b>\n\n"
+        "/lyrics artist - song — lyrics\n"
+        "/shuffle — shuffle queue\n"
+        "/clear — clear queue (keep current)\n"
+        "/clear all — clear full queue\n"
+        "/np | /now — now playing\n"
+        "/song <name> — download MP3 to chat\n"
+        "/radio — radio list\n"
+        "/radio lofi|pop|dance|rock|jazz\n"
+        "/id — user & chat id\n"
+        "/reload — reload admin cache\n"
+        "/replay — replay current track\n"
+        "/alive — bot status"
+    ),
+    "help_radio": (
+        "<b>📻 Radio</b>\n\n"
+        "/radio — list stations\n"
+        "/radio lofi — lofi hip hop\n"
+        "/radio pop — pop\n"
+        "/radio dance — dance\n"
+        "/radio rock — rock\n"
+        "/radio jazz — chill"
+    ),
+    "help_admin": (
+        "<b>🛡 Admin</b>\n\n"
+        "/playmode — admin-only play toggle\n"
+        "/auth /unauth — authorize users\n"
+        "/settings — chat settings\n"
+        "/reload — refresh admin list"
+    ),
+    "help_tools": (
+        "<b>🔧 Tools</b>\n\n"
+        "/ping — latency\n"
+        "/stats — stats\n"
+        "/activevc — active voice chats\n"
+        "/lang — language\n"
+        "/id — ids\n"
+        "/alive — status"
+    ),
+    "help_sudo": (
+        "<b>👑 Sudo / Owner</b>\n\n"
+        "/broadcast — broadcast\n"
+        "/restart — restart bot\n"
+        "/logs — get logs\n"
+        "/addsudo /delsudo /sudolist"
+    ),
+}
+
+
 @app.on_callback_query(filters.regex(r"^help"))
 @lang.language()
 async def help_cb(_, q: types.CallbackQuery):
-    data = q.data or ""
-    texts = {
-        "help": q.message.lang.get(
-            "help_menu",
-            "<b>Help — Tanu Music</b>\nUse the buttons below.",
-        )
-        if hasattr(q.message, "lang")
-        else "<b>Help — Tanu Music</b>",
-        "help_play": (
-            "<b>🎵 Play</b>\n"
-            "/play song name — play audio\n"
-            "/vplay song — play video\n"
-            "/skip /pause /resume /stop\n"
-            "/queue /loop"
-        ),
-        "help_admin": (
-            "<b>🛡 Admin</b>\n"
-            "/playmode — only admins can play\n"
-            "/auth /unauth — authorize users\n"
-            "/settings"
-        ),
-        "help_tools": (
-            "<b>🔧 Tools</b>\n"
-            "/ping /stats /activevc\n"
-            "/lang — language"
-        ),
-        "help_sudo": (
-            "<b>👑 Sudo</b>\n"
-            "/broadcast /restart /logs\n"
-            "/addsudo /delsudo"
-        ),
-    }
-    text = texts.get(data, texts.get("help", "Help"))
+    data = q.data or "help"
+    text = HELP_TEXTS.get(data, HELP_TEXTS["help"])
+    markup = buttons.help_markup(getattr(q.message, "lang", {}) or {})
     try:
-        await q.message.edit_caption(
-            caption=text,
-            reply_markup=buttons.help_markup(
-                getattr(q.message, "lang", {}) or {}
-            ),
-        )
+        await q.message.edit_caption(caption=text, reply_markup=markup)
     except Exception:
         try:
-            await q.message.edit_text(
-                text,
-                reply_markup=buttons.help_markup(
-                    getattr(q.message, "lang", {}) or {}
-                ),
-            )
+            await q.message.edit_text(text, reply_markup=markup)
         except Exception:
             pass
     await q.answer()
@@ -94,7 +119,6 @@ async def start(_, message: types.Message):
     if not message.from_user:
         return
 
-    # Blacklist check via db list (not Filter object)
     try:
         bl = getattr(db, "blacklisted", []) or []
         if message.from_user.id in bl:
@@ -112,13 +136,14 @@ async def start(_, message: types.Message):
     bot_name = app.name or config.BOT_NAME or "Tanu Music"
 
     _text = (
-        message.lang.get("start_pm", "Hey {0}, this is <b>{1}</b>!\nYour music player is ready.").format(
-            name, bot_name
-        )
+        message.lang.get(
+            "start_pm",
+            "Hey {0}, this is <b>{1}</b>!\nYour music player is ready.",
+        ).format(name, bot_name)
         if private
-        else message.lang.get("start_gp", "Hey, this is <b>{0}</b>\nA music player bot.").format(
-            bot_name
-        )
+        else message.lang.get(
+            "start_gp", "Hey, this is <b>{0}</b>\nA music player bot."
+        ).format(bot_name)
     )
 
     key = buttons.start_key(message.lang, private)

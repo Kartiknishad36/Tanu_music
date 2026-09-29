@@ -1,14 +1,13 @@
-import asyncio
 import logging
 from pyrogram.types import Message
 from pytgcalls import exceptions
 from pytgcalls.types import MediaStream, AudioQuality, VideoQuality
 from ntgcalls import ConnectionNotFound
 
-from TanuMusic import db, logger, queue, lang, app
 from TanuMusic.helpers import Media, Track
 
 log = logging.getLogger(__name__)
+
 
 class CallPlayer:
     def __init__(self, controller):
@@ -31,6 +30,9 @@ class CallPlayer:
         media: Media | Track,
         seek_time: int = 0,
     ) -> None:
+        import TanuMusic
+
+        db = TanuMusic.db
         client = await db.get_assistant(chat_id)
         file_path = getattr(media, "file_path", None)
         if not file_path:

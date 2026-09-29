@@ -1,109 +1,117 @@
-import asyncio
-
 from pyrogram import Client
-from pyrogram.errors import FloodWait
 
-from TanuMusic import config, logger
+import config
+from ..logging import LOGGER
 
-
-async def _sleep_flood(wait: int, label: str) -> None:
-    wait = max(int(wait), 5)
-    logger.error(
-        "⏳ FloodWait %s: %s sec (~%s min). Do NOT redeploy.",
-        label,
-        wait,
-        max(1, wait // 60),
-    )
-    remaining = wait
-    while remaining > 0:
-        step = min(60, remaining)
-        await asyncio.sleep(step)
-        remaining -= step
-        if remaining > 0:
-            logger.info("⏳ %s: %ss left...", label, remaining)
-    logger.info("✅ FloodWait %s done — retry", label)
+assistants = []
+assistantids = []
 
 
-class Userbot:
-    """Assistant manager — only sessions with non-empty STRING_SESSION."""
-
+class Userbot(Client):
     def __init__(self):
-        self.clients = []
-        self.one = None
-        self.two = None
-        self.three = None
-
-        mapping = [
-            ("one", "SESSION1", 1),
-            ("two", "SESSION2", 2),
-            ("three", "SESSION3", 3),
-        ]
-        for attr, key, num in mapping:
-            session = (getattr(config, key, None) or "").strip()
-            if not session:
-                continue
-            client = Client(
-                name=f"TanuTuneUB{num}",
-                api_id=config.API_ID,
-                api_hash=config.API_HASH,
-                session_string=session,
-                in_memory=True,
-            )
-            setattr(self, attr, client)
-
-    async def boot_client(self, num: int, client: Client):
-        if client is None:
-            return
-
-        while True:
-            try:
-                await client.start()
-                break
-            except FloodWait as e:
-                wait = int(getattr(e, "value", 0) or 0) + 10
-                await _sleep_flood(wait, f"assistant-{num}")
-            except Exception as e:
-                logger.error(f"Assistant {num} failed to start: {e}")
-                return
-
-        client.id = client.me.id if client.me else None
-        client.name = client.me.first_name if client.me else f"Assistant{num}"
-        client.username = client.me.username if client.me else None
-        client.mention = client.me.mention if client.me else client.name
-        self.clients.append(client)
-        logger.info(
-            f"Assistant {num} started as @{client.username or client.id}"
+        self.one = Client(
+            name="TanuAss1",
+            api_id=config.API_ID,
+            api_hash=config.API_HASH,
+            session_string=str(config.STRING1) if config.STRING1 else None,
+            no_updates=True,
+        )
+        self.two = Client(
+            name="TanuAss2",
+            api_id=config.API_ID,
+            api_hash=config.API_HASH,
+            session_string=str(config.STRING2) if config.STRING2 else None,
+            no_updates=True,
+        )
+        self.three = Client(
+            name="TanuAss3",
+            api_id=config.API_ID,
+            api_hash=config.API_HASH,
+            session_string=str(config.STRING3) if config.STRING3 else None,
+            no_updates=True,
+        )
+        self.four = Client(
+            name="TanuAss4",
+            api_id=config.API_ID,
+            api_hash=config.API_HASH,
+            session_string=str(config.STRING4) if config.STRING4 else None,
+            no_updates=True,
+        )
+        self.five = Client(
+            name="TanuAss5",
+            api_id=config.API_ID,
+            api_hash=config.API_HASH,
+            session_string=str(config.STRING5) if config.STRING5 else None,
+            no_updates=True,
         )
 
-        try:
-            from TanuMusic import app
-
-            if app.logger:
-                uname = f"@{client.username}" if client.username else str(client.id)
-                await app.send_message(
-                    app.logger,
-                    f"🎧 <b>Assistant {num} Started</b>\n• {uname}\n• ID: <code>{client.id}</code>",
-                )
-        except Exception as e:
-            logger.warning(f"Assistant {num} log msg failed: {e}")
-
-    async def boot(self):
-        if self.one:
-            await self.boot_client(1, self.one)
-        if self.two:
-            await self.boot_client(2, self.two)
-        if self.three:
-            await self.boot_client(3, self.three)
-
-        if not self.clients:
-            logger.warning("No assistant clients — set STRING_SESSION")
-
-    async def exit(self):
-        for client in list(self.clients):
+    async def start(self):
+        LOGGER(__name__).info("Starting assistants...")
+        if config.STRING1:
+            await self.one.start()
             try:
-                if client and getattr(client, "is_connected", False):
-                    await client.stop()
-            except Exception as e:
-                logger.warning(f"Error stopping assistant: {e}")
-        self.clients.clear()
-        logger.info("Assistants stopped.")
+                await self.one.send_message(config.LOGGER_ID, "Assistant 1 Started")
+            except Exception:
+                LOGGER(__name__).warning("Assistant 1 cannot access LOGGER group.")
+            assistants.append(1)
+            self.one.id = self.one.me.id
+            self.one.name = self.one.me.mention
+            self.one.username = self.one.me.username
+            assistantids.append(self.one.id)
+            LOGGER(__name__).info(f"Assistant 1 Started as {self.one.name}")
+
+        if config.STRING2:
+            await self.two.start()
+            assistants.append(2)
+            try:
+                await self.two.send_message(config.LOGGER_ID, "Assistant 2 Started")
+            except Exception:
+                pass
+            self.two.id = self.two.me.id
+            self.two.name = self.two.me.mention
+            self.two.username = self.two.me.username
+            assistantids.append(self.two.id)
+
+        if config.STRING3:
+            await self.three.start()
+            assistants.append(3)
+            try:
+                await self.three.send_message(config.LOGGER_ID, "Assistant 3 Started")
+            except Exception:
+                pass
+            self.three.id = self.three.me.id
+            self.three.name = self.three.me.mention
+            self.three.username = self.three.me.username
+            assistantids.append(self.three.id)
+
+        if config.STRING4:
+            await self.four.start()
+            assistants.append(4)
+            self.four.id = self.four.me.id
+            self.four.name = self.four.me.mention
+            self.four.username = self.four.me.username
+            assistantids.append(self.four.id)
+
+        if config.STRING5:
+            await self.five.start()
+            assistants.append(5)
+            self.five.id = self.five.me.id
+            self.five.name = self.five.me.mention
+            self.five.username = self.five.me.username
+            assistantids.append(self.five.id)
+
+    async def stop(self):
+        LOGGER(__name__).info("Stopping Assistants...")
+        try:
+            if config.STRING1:
+                await self.one.stop()
+            if config.STRING2:
+                await self.two.stop()
+            if config.STRING3:
+                await self.three.stop()
+            if config.STRING4:
+                await self.four.stop()
+            if config.STRING5:
+                await self.five.stop()
+        except Exception:
+            pass

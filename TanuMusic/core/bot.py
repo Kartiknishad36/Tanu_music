@@ -1,5 +1,4 @@
 import asyncio
-import os
 import time
 from typing import Optional
 
@@ -8,19 +7,25 @@ from pyrogram.errors import FloodWait
 
 from TanuMusic import config, logger
 
-# Restart spam prevent — same process / rapid redeploys
-_START_FLAG = "/tmp/tanumusic_log_sent"
+# Cross-restart throttle via Mongo (Railway /tmp is wiped every deploy)
 _THROTTLE_SEC = 600  # 10 minutes
 
 
-def _should_send_log() -> bool:
+async def _should_send_log() -> bool:
     try:
-        if os.path.exists(_START_FLAG):
-            age = time.time() - os.path.getmtime(_START_FLAG)
-            if age < _THROTTLE_SEC:
+        from TanuMusic import db
+
+        doc = await db.cache.find_one({"_id": "start_log"})
+        now = time.time()
+        if doc:
+            last = float(doc.get("ts", 0) or 0)
+            if now - last < _THROTTLE_SEC:
                 return False
-        with open(_START_FLAG, "w") as f:
-            f.write(str(time.time()))
+        await db.cache.update_one(
+            {"_id": "start_log"},
+            {"$set": {"ts": now}},
+            upsert=True,
+        )
         return True
     except Exception:
         return True
@@ -77,35 +82,50 @@ class Bot(pyrogram.Client):
         self.username = self.me.username
         self.mention = self.me.mention
 
-        # ONE start log only (anti spam on Railway restarts)
-        if self.logger and _should_send_log():
-            try:
-                text = (
-                    f"🤖 <b>Tanu Music ONLINE</b>\n"
-                    f"• Bot: @{self.username}\n"
-                    f"• ID: <code>{self.id}</code>\n"
-                    f"• Version: 3.0.1"
-                )
-                await self.send_message(self.logger, text)
-                try:
-                    member = await self.get_chat_member(self.logger, self.id)
-                    if member.status != pyrogram.enums.ChatMemberStatus.ADMINISTRATOR:
-                        logger.warning(
-                            "Bot is not admin in LOGGER group %s — promote bot.",
-                            self.logger,
-                        )
-                except Exception:
-                    pass
-            except Exception as ex:
-                logger.error(
-                    "Log group fail (LOGGER_ID=%s): %s",
-                    self.logger,
-                    ex,
-                )
-        else:
-            logger.info("Skipped duplicate start log (throttle 10 min)")
-
         logger.info(f"🤖 Bot started successfully as @{self.username}")
+
+        # Log group message is sent AFTER assistants boot — see send_online_log()
+
+    async def send_online_log(self, assistants: list | None = None) -> None:
+        """One combined ONLINE message (bot + assistants). Throttled 10 min."""
+        if not self.logger:
+            return
+        if not await _should_send_log():
+            logger.info("Skipped duplicate start log (Mongo throttle 10 min)")
+            return
+
+        lines = [
+            "🤖 <b>Tanu Music ONLINE</b>",
+            f"• Bot: @{self.username}",
+            f"• ID: <code>{self.id}</code>",
+            "• Version: 3.0.2",
+        ]
+        if assistants:
+            lines.append("")
+            lines.append("<b>Assistants:</b>")
+            for i, c in enumerate(assistants, 1):
+                uname = getattr(c, "username", None)
+                cid = getattr(c, "id", None)
+                name = getattr(c, "name", f"Assistant {i}")
+                tag = f"@{uname}" if uname else (f"<code>{cid}</code>" if cid else name)
+                lines.append(f"• Assistant {i}: {tag}")
+        else:
+            lines.append("")
+            lines.append("⚠️ No assistant connected (set STRING_SESSION)")
+
+        try:
+            await self.send_message(self.logger, "\n".join(lines))
+            try:
+                member = await self.get_chat_member(self.logger, self.id)
+                if member.status != pyrogram.enums.ChatMemberStatus.ADMINISTRATOR:
+                    logger.warning(
+                        "Bot is not admin in LOGGER group %s — promote bot.",
+                        self.logger,
+                    )
+            except Exception:
+                pass
+        except Exception as ex:
+            logger.error("Log group fail (LOGGER_ID=%s): %s", self.logger, ex)
 
     async def exit(self) -> None:
         try:

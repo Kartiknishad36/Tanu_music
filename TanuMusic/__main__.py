@@ -32,7 +32,6 @@ async def main():
     try:
         await db.connect()
 
-        # Bot login — FloodWait handled inside app.boot()
         await app.boot()
         await userbot.boot()
 
@@ -45,6 +44,12 @@ async def main():
                 await tune.boot()
             except Exception as e:
                 logger.error(f"PyTgCalls boot failed: {e}")
+
+        # Combined ONLINE (bot + assistants) — throttled in Mongo
+        try:
+            await app.send_online_log(userbot.clients)
+        except Exception as e:
+            logger.warning(f"Online log: {e}")
 
         loaded = 0
         for module in all_modules:
@@ -95,7 +100,6 @@ async def main():
             wait,
         )
         await asyncio.sleep(wait)
-        # One more try after wait
         try:
             await app.boot()
             await idle()
@@ -105,7 +109,6 @@ async def main():
         logger.info("Stop signal received")
     except Exception as e:
         logger.exception("Fatal error: %s", e)
-        # Sleep so Railway does not instantly restart and worsen FloodWait
         await asyncio.sleep(60)
         raise
     finally:

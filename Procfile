@@ -1,1 +1,1 @@
-worker: python3 -m TanuMusic
+worker: bash start

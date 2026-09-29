@@ -1,23 +1,5 @@
 {
-  "API_ID": "",
-  "API_HASH": "",
-  "BOT_TOKEN": "",
-  "STRING_SESSION": "",
-  "MONGO_DB_URI": "",
-  "OWNER_ID": "",
-  "LOGGER_ID": "",
-  "BOT_USERNAME": "",
-  "BOT_NAME": "Tanu Music",
-  "OWNER_USERNAME": "KARTIK_NISHAD_3",
-  "STRING_SESSION2": "",
-  "STRING_SESSION3": "",
-  "SUPPORT_CHANNEL": "https://t.me/ye_duniya_ek_sapna_he",
-  "SUPPORT_CHAT": "https://t.me/+M5ApQJTxdxgxMDg1",
-  "COOKIE_URL": "",
-  "QUEUE_LIMIT": "30",
-  "DURATION_LIMIT": "300",
-  "AUTO_LEAVE": "False",
-  "START_IMG": "",
-  "PING_IMG": "",
-  "DEFAULT_THUMB": ""
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+  "deploy": { "restartPolicyType": "ON_FAILURE", "restartPolicyMaxRetries": 5 }
 }

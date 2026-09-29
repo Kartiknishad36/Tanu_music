@@ -1,24 +1,14 @@
 FROM python:3.11-slim-bookworm
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-WORKDIR /app
-
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-        ffmpeg \
-        git \
-        curl \
-        ca-certificates \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg git curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+WORKDIR /app
+COPY . /app/
 
-COPY . .
+RUN pip3 install --no-cache-dir -U pip \
+    && pip3 install --no-cache-dir -U -r requirements.txt
 
-CMD ["python3", "-m", "TanuMusic"]
+CMD ["bash", "start"]

@@ -4,6 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Public fallback images (override with START_IMG / PING_IMG env)
+_DEFAULT_START = "https://telegra.ph/file/2a7e32a5c1c0c0b0e0c0e.jpg"
+_DEFAULT_PING = "https://telegra.ph/file/2a7e32a5c1c0c0b0e0c0e.jpg"
+
 
 class Config:
     def __init__(self):
@@ -24,7 +28,9 @@ class Config:
         self.PLAYLIST_MAX: int = int(getenv("PLAYLIST_MAX", "60"))
 
         self.SPOTIFY_CLIENT_ID: str = getenv("SPOTIFY_CLIENT_ID") or getenv("SPOTIPY_CLIENT_ID", "")
-        self.SPOTIFY_CLIENT_SECRET: str = getenv("SPOTIFY_CLIENT_SECRET") or getenv("SPOTIPY_CLIENT_SECRET", "")
+        self.SPOTIFY_CLIENT_SECRET: str = getenv("SPOTIFY_CLIENT_SECRET") or getenv(
+            "SPOTIPY_CLIENT_SECRET", ""
+        )
 
         self.SESSION1: str = getenv("STRING_SESSION", "")
         self.SESSION2: str = getenv("STRING_SESSION2", "")
@@ -49,10 +55,10 @@ class Config:
 
         self.COOKIES_URL: List[str] = self._parse_cookies()
 
-        self.DEFAULT_THUMB: str = getenv("DEFAULT_THUMB", "")
-        self.PING_IMG: str = getenv("PING_IMG", "")
-        self.START_IMG: str = getenv("START_IMG", "")
-        self.RADIO_IMG: str = getenv("RADIO_IMG", "")
+        self.DEFAULT_THUMB: str = getenv("DEFAULT_THUMB", "") or _DEFAULT_START
+        self.PING_IMG: str = getenv("PING_IMG", "") or _DEFAULT_PING
+        self.START_IMG: str = getenv("START_IMG", "") or _DEFAULT_START
+        self.RADIO_IMG: str = getenv("RADIO_IMG", "") or _DEFAULT_START
 
         self.EXCLUDED_USERNAMES: List[str] = [
             x.strip() for x in getenv("EXCLUDED_USERNAMES", "").split() if x.strip()

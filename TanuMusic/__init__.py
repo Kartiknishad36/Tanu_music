@@ -48,6 +48,7 @@ from TanuMusic.core.dir import ensure_dirs
 
 ensure_dirs()
 
+# --- core clients (no dependency on queue/tune) ---
 from TanuMusic.core.bot import Bot
 
 app = Bot()
@@ -72,13 +73,14 @@ tg = Telegram()
 yt = YouTube()
 spotify = Spotify()
 
+# queue BEFORE preload / calls (they import queue)
+from TanuMusic.helpers._queue import Queue
+
+queue = Queue()
+
 from TanuMusic.core.preload import PreloadManager
 
 preload = PreloadManager()
-
-from TanuMusic.helpers import Queue
-
-queue = Queue()
 
 from TanuMusic.core.calls import TgCall
 

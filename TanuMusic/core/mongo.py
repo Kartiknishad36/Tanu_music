@@ -64,6 +64,9 @@ class MongoDB:
         self.users = []
         self.usersdb = self.db.users
 
+        # /sg name-username-bio-photo history
+        self.historydb = self.db.user_history
+
     async def connect(self) -> None:
         max_retries = 3
         retry_delay = 5
@@ -75,6 +78,10 @@ class MongoDB:
                 await self.authdb.create_index("_id")
                 await self.langdb.create_index("_id")
                 await self.cache.create_index("_id")
+                try:
+                    await self.historydb.create_index("_id")
+                except Exception:
+                    pass
                 await self.load_cache()
                 return
             except Exception as e:
@@ -85,7 +92,9 @@ class MongoDB:
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    raise SystemExit(f"Database connection failed after {max_retries} attempts: {e}")
+                    raise SystemExit(
+                        f"Database connection failed after {max_retries} attempts: {e}"
+                    )
 
     async def close(self) -> None:
         try:

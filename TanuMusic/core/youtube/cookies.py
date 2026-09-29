@@ -3,6 +3,7 @@ import random
 import aiohttp
 from TanuMusic import logger
 
+
 class CookieManager:
     def __init__(self):
         self.cookies = []
@@ -11,46 +12,76 @@ class CookieManager:
 
     def get_cookies(self):
         if not self.checked:
-            if os.path.exists("TanuMusic/cookies"):
-                for file in os.listdir("TanuMusic/cookies"):
-                    if file.endswith(".txt"):
-                        self.cookies.append(file)
+            path = "TanuMusic/cookies"
+            if os.path.isdir(path):
+                for file in os.listdir(path):
+                    if file.endswith(".txt") and file.lower() not in ("readme.txt",):
+                        full = os.path.join(path, file)
+                        if os.path.getsize(full) > 50:
+                            self.cookies.append(file)
             self.checked = True
         if not self.cookies:
             if not self.warned:
                 self.warned = True
-                logger.warning("Cookies are missing; downloads might fail.")
+                logger.warning("Cookies missing — search may still work; downloads may fail.")
             return None
-        return f"TanuMusic/cookies/{random.choice(self.cookies)}"
+        chosen = random.choice(self.cookies)
+        full = f"TanuMusic/cookies/{chosen}"
+        if not os.path.exists(full):
+            return None
+        return full
 
-    async def save_cookies(self, urls: list[str]) -> None:
+    def _to_raw(self, url: str) -> str:
+        u = url.strip()
+        if "pastebin.com/" in u and "/raw/" not in u:
+            # https://pastebin.com/XXXX -> https://pastebin.com/raw/XXXX
+            parts = u.rstrip("/").split("/")
+            code = parts[-1]
+            return f"https://pastebin.com/raw/{code}"
+        if "paste.ee/" in u and "/r/" in u and "/raw/" not in u:
+            return u.replace("/r/", "/p/") if False else u  # paste.ee raw is often same
+        if "batbin.me/" in u and "/raw" not in u:
+            return u.rstrip("/") + "/raw"
+        return u
+
+    async def save_cookies(self, urls) -> None:
+        if isinstance(urls, str):
+            urls = [urls]
+        if not urls:
+            return
         logger.info("Saving cookies from urls...")
-        saved_count = 0
+        saved = 0
         os.makedirs("TanuMusic/cookies", exist_ok=True)
         for url in urls:
+            if not url:
+                continue
             try:
+                link = self._to_raw(url)
                 path = f"TanuMusic/cookies/cookie{random.randint(10000, 99999)}.txt"
-                link = url.replace("me/", "me/raw/")
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(link) as resp:
+                    async with session.get(link, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                         if resp.status != 200:
-                            logger.error(f"Cookie download failed: HTTP {resp.status} from {url}")
+                            logger.error(f"Cookie HTTP {resp.status} from {link}")
                             continue
                         content = await resp.read()
                         if not content or len(content) < 50:
-                            logger.error(f"Cookie file empty or invalid from {url}")
+                            logger.error(f"Cookie empty from {link}")
                             continue
+                        # Basic netscape check
+                        text = content.decode("utf-8", errors="ignore")
+                        if "youtube.com" not in text and ".youtube.com" not in text:
+                            logger.warning("Cookie file has no youtube.com entries — may not help")
                         with open(path, "wb") as fw:
                             fw.write(content)
-                        if os.path.exists(path) and os.path.getsize(path) > 0:
-                            cookie_filename = os.path.basename(path)
-                            if cookie_filename not in self.cookies:
-                                self.cookies.append(cookie_filename)
-                            saved_count += 1
-                            logger.info(f"Saved: {cookie_filename}")
+                        name = os.path.basename(path)
+                        if name not in self.cookies:
+                            self.cookies.append(name)
+                        saved += 1
+                        logger.info(f"Saved cookie: {name}")
             except Exception as e:
                 logger.error(f"Cookie save error: {e}")
-        if saved_count == 0:
-            logger.error("No cookies saved! Check COOKIE_URL. YouTube downloads may fail.")
+        self.checked = True
+        if saved == 0:
+            logger.error("No cookies saved. Check COOKIE_URL is a raw paste link.")
         else:
-            logger.info(f"Cookies ready: {saved_count} file(s)")
+            logger.info(f"Cookies ready: {saved} file(s)")

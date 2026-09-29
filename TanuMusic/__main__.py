@@ -2,6 +2,7 @@ import asyncio
 import importlib
 import sys
 from pyrogram import idle
+from pyrogram.errors import FloodWait
 
 if sys.platform != "win32":
     try:
@@ -31,6 +32,7 @@ async def main():
     try:
         await db.connect()
 
+        # Bot login — FloodWait handled inside app.boot()
         await app.boot()
         await userbot.boot()
 
@@ -39,7 +41,10 @@ async def main():
                 "No assistant started. Check STRING_SESSION in Railway variables."
             )
         else:
-            await tune.boot()
+            try:
+                await tune.boot()
+            except Exception as e:
+                logger.error(f"PyTgCalls boot failed: {e}")
 
         loaded = 0
         for module in all_modules:
@@ -83,12 +88,40 @@ async def main():
         logger.info("Tanu Music started successfully — ready!")
 
         await idle()
+    except FloodWait as e:
+        wait = int(getattr(e, "value", 60) or 60) + 10
+        logger.error(
+            "FloodWait %ss — sleeping in-process (do not redeploy).",
+            wait,
+        )
+        await asyncio.sleep(wait)
+        # One more try after wait
+        try:
+            await app.boot()
+            await idle()
+        except Exception as e2:
+            logger.error("Retry after FloodWait failed: %s", e2)
     except KeyboardInterrupt:
         logger.info("Stop signal received")
+    except Exception as e:
+        logger.exception("Fatal error: %s", e)
+        # Sleep so Railway does not instantly restart and worsen FloodWait
+        await asyncio.sleep(60)
+        raise
     finally:
-        await stop()
+        try:
+            await stop()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(main())
+    finally:
+        try:
+            loop.close()
+        except Exception:
+            pass

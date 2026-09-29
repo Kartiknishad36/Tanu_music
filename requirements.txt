@@ -7,4 +7,4 @@ pytgcrypto~=1.2.12
 py-tgcalls~=2.2.11
 python-dotenv~=1.2.2
 spotipy~=2.24.0
-yt-dlp[default]
+yt-dlp>=2025.1.15

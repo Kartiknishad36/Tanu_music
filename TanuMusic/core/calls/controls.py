@@ -1,13 +1,18 @@
 import asyncio
 from ntgcalls import ConnectionNotFound
 from pytgcalls import exceptions
-from TanuMusic import app, db, logger, preload, queue, lang
+
 
 class CallControls:
     def __init__(self, controller):
         self.controller = controller
 
     async def pause(self, chat_id: int) -> bool:
+        import TanuMusic
+
+        db = TanuMusic.db
+        queue = TanuMusic.queue
+        logger = TanuMusic.logger
         async with self.controller.get_lock(chat_id):
             client = await db.get_assistant(chat_id)
             try:
@@ -26,6 +31,11 @@ class CallControls:
                 return False
 
     async def resume(self, chat_id: int) -> bool:
+        import TanuMusic
+
+        db = TanuMusic.db
+        queue = TanuMusic.queue
+        logger = TanuMusic.logger
         async with self.controller.get_lock(chat_id):
             client = await db.get_assistant(chat_id)
             try:
@@ -47,6 +57,13 @@ class CallControls:
             await self._stop_impl(chat_id)
 
     async def _stop_impl(self, chat_id: int) -> None:
+        import TanuMusic
+
+        db = TanuMusic.db
+        queue = TanuMusic.queue
+        preload = TanuMusic.preload
+        logger = TanuMusic.logger
+
         self.controller._session_gen[chat_id] = self.controller._session_gen.get(chat_id, 0) + 1
         client = await db.get_assistant(chat_id)
 
@@ -68,13 +85,27 @@ class CallControls:
             pass
         except Exception as e:
             error_msg = str(e).lower()
-            if not any(ignore in error_msg for ignore in [
-                "not in a call", "not in the group call", "groupcall_forbidden",
-                "no active group call", "call was already stopped", "call already disconnected"
-            ]):
+            if not any(
+                ignore in error_msg
+                for ignore in [
+                    "not in a call",
+                    "not in the group call",
+                    "groupcall_forbidden",
+                    "no active group call",
+                    "call was already stopped",
+                    "call already disconnected",
+                ]
+            ):
                 logger.warning(f"Error leaving call for {chat_id}: {e}")
 
     async def seek_stream(self, chat_id: int, seconds: int) -> bool:
+        import TanuMusic
+
+        app = TanuMusic.app
+        db = TanuMusic.db
+        queue = TanuMusic.queue
+        lang = TanuMusic.lang
+        logger = TanuMusic.logger
         try:
             if not await db.get_call(chat_id):
                 return False
@@ -92,7 +123,7 @@ class CallControls:
 
             if not msg:
                 _lang = await lang.get_lang(chat_id)
-                msg = await app.send_message(chat_id=chat_id, text=_lang["seeking"])
+                msg = await app.send_message(chat_id=chat_id, text=_lang.get("seeking", "Seeking..."))
 
             await self.controller._player._play_media_impl(chat_id, msg, media, seek_time=seconds)
             return True

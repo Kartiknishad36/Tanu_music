@@ -2,7 +2,7 @@ import json
 from functools import wraps
 from pathlib import Path
 
-from TanuMusic import db, logger
+from TanuMusic import logger
 
 lang_codes = {
     "en": "🇺🇸 English",
@@ -56,7 +56,15 @@ class Language:
         return languages
 
     async def get_lang(self, chat_id: int) -> dict:
-        lang_code = await db.get_lang(chat_id)
+        import TanuMusic
+
+        db = TanuMusic.db
+        lang_code = "en"
+        if db is not None:
+            try:
+                lang_code = await db.get_lang(chat_id)
+            except Exception:
+                lang_code = "en"
         if lang_code not in self.languages:
             lang_code = "en"
 
@@ -69,6 +77,10 @@ class Language:
         def decorator(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
+                import TanuMusic
+
+                db = TanuMusic.db
+
                 fallen = next(
                     (
                         arg
@@ -85,17 +97,33 @@ class Language:
                 else:
                     return await func(*args, **kwargs)
 
-                if chat.id in db.blacklisted:
-                    return await chat.leave()
+                # Safe blacklist check — never crash if db not ready
+                try:
+                    bl = getattr(db, "blacklisted", None) if db is not None else None
+                    if bl is not None and chat.id in bl:
+                        try:
+                            return await chat.leave()
+                        except Exception:
+                            return
+                except Exception:
+                    pass
 
-                lang_code = await db.get_lang(chat.id)
+                lang_code = "en"
+                if db is not None:
+                    try:
+                        lang_code = await db.get_lang(chat.id)
+                    except Exception:
+                        lang_code = "en"
                 if lang_code not in self.languages:
                     lang_code = "en"
 
                 if lang_code == "en":
                     lang_dict = self.languages["en"]
                 else:
-                    lang_dict = LangDict(self.languages[lang_code], self.languages["en"])
+                    lang_dict = LangDict(
+                        self.languages.get(lang_code, {}),
+                        self.languages["en"],
+                    )
 
                 setattr(fallen, "lang", lang_dict)
                 return await func(*args, **kwargs)

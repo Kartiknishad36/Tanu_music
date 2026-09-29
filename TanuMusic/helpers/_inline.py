@@ -116,12 +116,16 @@ class Inline:
         return self.ikm(
             [
                 [
-                    self.ikb(text=lang.get("help_play", "🎵 Play"), callback_data="help_play"),
-                    self.ikb(text=lang.get("help_admin", "🛡 Admin"), callback_data="help_admin"),
+                    self.ikb(text="🎵 Play", callback_data="help_play"),
+                    self.ikb(text="✨ Extra", callback_data="help_extra"),
                 ],
                 [
-                    self.ikb(text=lang.get("help_tools", "🔧 Tools"), callback_data="help_tools"),
-                    self.ikb(text=lang.get("help_sudo", "👑 Sudo"), callback_data="help_sudo"),
+                    self.ikb(text="🛡 Admin", callback_data="help_admin"),
+                    self.ikb(text="🔧 Tools", callback_data="help_tools"),
+                ],
+                [
+                    self.ikb(text="👑 Sudo", callback_data="help_sudo"),
+                    self.ikb(text="📻 Radio", callback_data="help_radio"),
                 ],
                 [self.ikb(text=lang.get("close", "Close"), callback_data="controls close 0")],
             ]
@@ -139,9 +143,17 @@ class Inline:
 
     def yt_key(self, link: str) -> types.InlineKeyboardMarkup:
         return self.ikm(
-            [
-                [
-                    self.ikb(text="ᴏᴘᴇɴ ɪɴ ʏᴏᴜᴛᴜʙᴇ", url=link),
-                ]
-            ]
+            [[self.ikb(text="ᴏᴘᴇɴ ɪɴ ʏᴏᴜᴛᴜʙᴇ", url=link)]]
         )
+
+    def radio_markup(self) -> types.InlineKeyboardMarkup:
+        rows = []
+        row = []
+        for i, key in enumerate(["lofi", "pop", "dance", "rock", "jazz"]):
+            row.append(self.ikb(text=key.title(), callback_data=f"radio_{key}"))
+            if len(row) == 3:
+                rows.append(row)
+                row = []
+        if row:
+            rows.append(row)
+        return self.ikm(rows)

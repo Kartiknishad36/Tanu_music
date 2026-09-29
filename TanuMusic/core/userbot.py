@@ -1,7 +1,27 @@
+import asyncio
+
 from pyrogram import Client
 from pyrogram.errors import FloodWait
 
 from TanuMusic import config, logger
+
+
+async def _sleep_flood(wait: int, label: str) -> None:
+    wait = max(int(wait), 5)
+    logger.error(
+        "⏳ FloodWait %s: %s sec (~%s min). Do NOT redeploy.",
+        label,
+        wait,
+        max(1, wait // 60),
+    )
+    remaining = wait
+    while remaining > 0:
+        step = min(60, remaining)
+        await asyncio.sleep(step)
+        remaining -= step
+        if remaining > 0:
+            logger.info("⏳ %s: %ss left...", label, remaining)
+    logger.info("✅ FloodWait %s done — retry", label)
 
 
 class Userbot:
@@ -34,21 +54,20 @@ class Userbot:
     async def boot_client(self, num: int, client: Client):
         if client is None:
             return
-        try:
-            await client.start()
-        except FloodWait as e:
-            logger.error(
-                f"Assistant {num} FloodWait {e.value}s — skip this start"
-            )
-            return
-        except Exception as e:
-            logger.error(f"Assistant {num} failed to start: {e}")
-            return
+
+        while True:
+            try:
+                await client.start()
+                break
+            except FloodWait as e:
+                wait = int(getattr(e, "value", 0) or 0) + 10
+                await _sleep_flood(wait, f"assistant-{num}")
+            except Exception as e:
+                logger.error(f"Assistant {num} failed to start: {e}")
+                return
 
         client.id = client.me.id if client.me else None
-        client.name = (
-            client.me.first_name if client.me else f"Assistant{num}"
-        )
+        client.name = client.me.first_name if client.me else f"Assistant{num}"
         client.username = client.me.username if client.me else None
         client.mention = client.me.mention if client.me else client.name
         self.clients.append(client)
@@ -56,7 +75,6 @@ class Userbot:
             f"Assistant {num} started as @{client.username or client.id}"
         )
 
-        # Optional separate log line (also listed in combined ONLINE)
         try:
             from TanuMusic import app
 

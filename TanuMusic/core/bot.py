@@ -31,6 +31,31 @@ async def _should_send_log() -> bool:
         return True
 
 
+async def _sleep_flood(wait: int, label: str = "bot") -> None:
+    """Sleep full FloodWait with heartbeat so Railway sees activity."""
+    wait = max(int(wait), 5)
+    logger.error(
+        "⏳ FloodWait %s: sleeping %s sec (~%s min). DO NOT REDEPLOY — wait will reset.",
+        label,
+        wait,
+        max(1, wait // 60),
+    )
+    remaining = wait
+    chunk = 60  # log every minute
+    while remaining > 0:
+        step = min(chunk, remaining)
+        await asyncio.sleep(step)
+        remaining -= step
+        if remaining > 0:
+            logger.info(
+                "⏳ FloodWait %s: %s sec left (~%s min)...",
+                label,
+                remaining,
+                max(1, remaining // 60),
+            )
+    logger.info("✅ FloodWait %s done — retrying login...", label)
+
+
 class Bot(pyrogram.Client):
 
     def __init__(self):
@@ -57,25 +82,18 @@ class Bot(pyrogram.Client):
         self.mention: Optional[str] = None
 
     async def boot(self) -> None:
-        attempts = 0
+        """Login bot. On FloodWait: sleep FULL time, then retry. Never exit."""
         while True:
-            attempts += 1
             try:
                 await super().start()
                 break
             except FloodWait as e:
-                wait = int(getattr(e, "value", 0) or 0) + 5
-                logger.error(
-                    "FloodWait on bot login: wait %s sec (~%s min). Do NOT redeploy.",
-                    wait,
-                    max(1, wait // 60),
-                )
-                if attempts > 3:
-                    raise
-                await asyncio.sleep(wait)
+                wait = int(getattr(e, "value", 0) or 0) + 10
+                await _sleep_flood(wait, "bot-login")
+                # loop retries after full sleep — do not raise
             except Exception as e:
-                logger.error("Bot start failed: %s", e)
-                raise
+                logger.error("Bot start failed: %s — retry in 30s", e)
+                await asyncio.sleep(30)
 
         self.id = self.me.id
         self.name = self.me.first_name
@@ -83,8 +101,6 @@ class Bot(pyrogram.Client):
         self.mention = self.me.mention
 
         logger.info(f"🤖 Bot started successfully as @{self.username}")
-
-        # Log group message is sent AFTER assistants boot — see send_online_log()
 
     async def send_online_log(self, assistants: list | None = None) -> None:
         """One combined ONLINE message (bot + assistants). Throttled 10 min."""
@@ -98,7 +114,7 @@ class Bot(pyrogram.Client):
             "🤖 <b>Tanu Music ONLINE</b>",
             f"• Bot: @{self.username}",
             f"• ID: <code>{self.id}</code>",
-            "• Version: 3.0.2",
+            "• Version: 3.0.3",
         ]
         if assistants:
             lines.append("")

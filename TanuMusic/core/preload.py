@@ -1,5 +1,5 @@
 import asyncio
-from TanuMusic import logger, queue, yt
+
 
 class PreloadManager:
     def __init__(self):
@@ -15,6 +15,12 @@ class PreloadManager:
                 pass
 
     async def preload_next(self, chat_id: int) -> None:
+        import TanuMusic
+
+        queue = TanuMusic.queue
+        yt = TanuMusic.yt
+        logger = TanuMusic.logger
+
         items = queue.peek_next(chat_id, count=1)
         if not items:
             return

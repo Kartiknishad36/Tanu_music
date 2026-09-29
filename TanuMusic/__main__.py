@@ -1,5 +1,5 @@
 import asyncio
-import importlib
+import importlib.util
 import pathlib
 import sys
 from pyrogram import idle
@@ -43,14 +43,19 @@ TanuMusic.preload = preload
 
 def load_plugins():
     count = 0
-    for path in pathlib.Path("TanuMusic/plugins").glob("*.py"):
-        if path.name.startswith("_"):
+    base = pathlib.Path("TanuMusic/plugins")
+    for path in base.rglob("*.py"):
+        if "__pycache__" in str(path) or path.name.startswith("_"):
             continue
+        mod_name = ".".join(path.with_suffix("").parts)
         try:
-            importlib.import_module(f"TanuMusic.plugins.{path.stem}")
+            spec = importlib.util.spec_from_file_location(mod_name, path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = mod
+            spec.loader.exec_module(mod)
             count += 1
         except Exception as e:
-            logger.error(f"Failed to load {path.stem}: {e}")
+            logger.error(f"Failed to load {mod_name}: {e}")
     logger.info(f"Loaded {count} plugins")
 
 async def stop():
@@ -76,9 +81,7 @@ async def main():
     await app.boot()
     await userbot.boot()
     await tune.boot()
-    
     load_plugins()
-
     logger.info("TanuMusic Started Successfully!")
     await idle()
     await stop()

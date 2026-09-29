@@ -1,11 +1,11 @@
-import asyncio
 import logging
 from pyrogram import filters, types
-from pyrogram.errors import FloodWait, ChatSendPlainForbidden, ChatWriteForbidden
+from pyrogram.errors import ChatSendPlainForbidden, ChatWriteForbidden
 
 from TanuMusic import tune, app, db, lang, queue, yt, userbot
 from TanuMusic.helpers import buttons, utils
 from TanuMusic.helpers._play import checkUB
+from TanuMusic.helpers.assistant_join import ensure_assistant_in_chat
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,12 @@ async def play_hndlr(_, m: types.Message) -> None:
         return
 
     try:
+        # Join assistant FIRST (before download) so peer is ready
+        ok, reason = await ensure_assistant_in_chat(chat_id)
+        if not ok:
+            await sent.edit_text(reason)
+            return
+
         track = await yt.search(query, m.id, music=not video) if query else None
 
         if not track:
@@ -119,7 +125,15 @@ async def play_hndlr(_, m: types.Message) -> None:
     except Exception as e:
         logger.exception("play error")
         err = str(e).strip() or type(e).__name__
+        # Soften raw CHANNEL_INVALID for users
+        if "CHANNEL_INVALID" in err:
+            err = (
+                "Assistant is group me nahi / peer invalid.\n"
+                "• Bot ko Invite Users admin right do\n"
+                "• Assistant account manually add karo\n"
+                "• Phir /play dobara try karo"
+            )
         try:
-            await sent.edit_text(f"❌ Play error: <code>{err[:400]}</code>")
+            await sent.edit_text(f"❌ Play error:\n{err[:500]}")
         except Exception:
             pass

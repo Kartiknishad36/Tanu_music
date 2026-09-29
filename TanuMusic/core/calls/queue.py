@@ -1,21 +1,27 @@
-import asyncio
-from TanuMusic import db, logger, queue, preload
-
 class CallQueue:
     def __init__(self, controller):
         self.controller = controller
 
     async def replay(self, chat_id: int) -> None:
+        import TanuMusic
+
+        queue = TanuMusic.queue
+        logger = TanuMusic.logger
         media = queue.get_current(chat_id)
         if not media:
             return
         try:
-            msg = None
-            await self.controller._player.play_media(chat_id, msg, media)
+            await self.controller._player.play_media(chat_id, None, media)
         except Exception as e:
             logger.error(f"Replay failed {chat_id}: {e}")
 
     async def play_next(self, chat_id: int, expected_index: int = None) -> None:
+        import TanuMusic
+
+        queue = TanuMusic.queue
+        preload = TanuMusic.preload
+        logger = TanuMusic.logger
+
         self.controller._pending_transitions.discard(chat_id)
         try:
             next_item = queue.get_next(chat_id)
@@ -36,6 +42,9 @@ class CallQueue:
                 pass
 
     async def play_previous(self, chat_id: int) -> bool:
+        import TanuMusic
+
+        queue = TanuMusic.queue
         prev = queue.get_previous(chat_id)
         if not prev:
             return False

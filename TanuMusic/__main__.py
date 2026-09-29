@@ -73,7 +73,6 @@ async def stop():
 
 async def main():
     await db.connect()
-    await lang.load()
     await app.boot()
     await userbot.boot()
     await tune.boot()

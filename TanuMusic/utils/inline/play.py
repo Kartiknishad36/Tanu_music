@@ -112,6 +112,21 @@ def stream_markup(_, chat_id):
     return buttons
 
 
+def telegram_markup(_):
+    buttons = [
+        [
+            InlineKeyboardButton(text="▷", callback_data="ADMIN Resume|0"),
+            InlineKeyboardButton(text="II", callback_data="ADMIN Pause|0"),
+            InlineKeyboardButton(text="‣‣I", callback_data="ADMIN Skip|0"),
+            InlineKeyboardButton(text="▢", callback_data="ADMIN Stop|0"),
+        ],
+        [
+            InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close"),
+        ],
+    ]
+    return buttons
+
+
 def playlist_markup(_, videoid, user_id, ptype, channel, fplay):
     buttons = [
         [

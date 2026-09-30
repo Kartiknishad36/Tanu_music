@@ -56,68 +56,42 @@ class TeleAPI:
         audio: Union[bool, str] = None,
         video: Union[bool, str] = None,
     ):
+        dest = getattr(config, "DOWNLOADS_DEST", "downloads")
+        if not os.path.exists(dest):
+            os.makedirs(dest, exist_ok=True)
+
         if audio:
             try:
-                file_name = (
-                    audio.file_unique_id
-                    + "."
-                    + (
-                        (
-                            audio.file_name.split(".")[-1]
-                            if ("." in audio.file_name
-and audio.file_name.split(".")[-1]
-                            not in ["opus", "m4a", "webm"]
-                            else "ogg"
-                        )
-                        if audio.file_name
-                        else "ogg"
-                    )
-                )
+                ext = "ogg"
+                if audio.file_name and "." in audio.file_name:
+                    raw_ext = audio.file_name.split(".")[-1]
+                    if raw_ext not in ["opus", "m4a", "webm"]:
+                        ext = raw_ext
+                file_name = f"{audio.file_unique_id}.{ext}"
             except Exception:
-                file_name = audio.file_unique_id + ".ogg"
-            file_path = os.path.join(config.DOWNLOADS_DEST, file_name)
+                file_name = f"{audio.file_unique_id}.ogg"
+            return os.path.join(dest, file_name)
+
         if video:
             try:
-                file_name = (
-                    video.file_unique_id
-                    + "."
-                    + (video.file_name.split(".")[-1] if video.file_name else "mp4")
-                )
+                ext = "mp4"
+                if video.file_name and "." in video.file_name:
+                    ext = video.file_name.split(".")[-1]
+                file_name = f"{video.file_unique_id}.{ext}"
             except Exception:
-                file_name = video.file_unique_id + ".mp4"
-            file_path = os.path.join(config.DOWNLOADS_DEST, file_name)
-        return file_path
+                file_name = f"{video.file_unique_id}.mp4"
+            return os.path.join(dest, file_name)
+
+        return os.path.join(dest, "telegram_file")
 
     async def download(self, message, mystic, fname: str):
         try:
-            left_time = {}
-            speed_counter = {}
-
-            def speed_count(to_download, filename, size):
-                if time.time() not in speed_counter:
-                    speed_counter[time.time()] = 0
-                try:
-                    percentage = (to_download / size) * 100
-                    speed = (to_download - speed_counter[list(speed_counter.keys())[-1]]) / (
-                        time.time() - list(speed_counter.keys())[-1]
-                    )
-                    remaining = (size - to_download) / speed if speed else 0
-                    left_time[filename] = remaining
-                except Exception:
-                    pass
-
             async def progress(current, total):
-                if current == total:
-                    try:
-                        speed_counter.clear()
-                        left_time.clear()
-                    except Exception:
-                        pass
+                if total == 0:
                     return
                 try:
-                    speed_count(current, fname, total)
+                    percentage = current * 100 / total
                     if current % (5 * 1024 * 1024) == 0 or current == total:
-                        percentage = current * 100 / total
                         await mystic.edit_text(
                             f"**Downloading...**\n\n"
                             f"• Progress: `{percentage:.1f}%`\n"
@@ -135,5 +109,8 @@ and audio.file_name.split(".")[-1]
             )
             return True
         except Exception as e:
-            await mystic.edit_text(f"Download failed: {e}")
+            try:
+                await mystic.edit_text(f"Download failed: {e}")
+            except Exception:
+                pass
             return False

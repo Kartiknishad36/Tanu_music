@@ -1,4 +1,5 @@
 import json
+import string
 import subprocess
 
 
@@ -118,3 +119,21 @@ def check_duration(file_path):
             if "duration" in s:
                 return float(s["duration"])
     return "Unknown"
+
+
+def int_to_alpha(user_id: int) -> str:
+    alphabet = list(string.ascii_lowercase)[:10]
+    text = ""
+    user_id = str(user_id)
+    for i in user_id:
+        text += alphabet[int(i)]
+    return text
+
+
+def alpha_to_int(user_id_alphabet: str) -> int:
+    alphabet = list(string.ascii_lowercase)[:10]
+    user_id = ""
+    for i in user_id_alphabet:
+        index = alphabet.index(i)
+        user_id += str(index)
+    return int(user_id)

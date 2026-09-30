@@ -2,9 +2,14 @@ from TanuMusic.core.bot import BABY
 from TanuMusic.core.dir import dirr
 from TanuMusic.core.git import git
 from TanuMusic.core.userbot import Userbot
-from TanuMusic.misc import dbb, heroku
+from TanuMusic.misc import dbb, heroku, db
 from pyrogram import Client
-from SafoneAPI import SafoneAPI
+
+try:
+    from SafoneAPI import SafoneAPI
+except Exception:
+    SafoneAPI = None
+
 from .logging import LOGGER
 
 dirr()
@@ -13,7 +18,7 @@ dbb()
 heroku()
 
 app = BABY()
-api = SafoneAPI()
+api = SafoneAPI() if SafoneAPI else None
 userbot = Userbot()
 
 from .platforms import *

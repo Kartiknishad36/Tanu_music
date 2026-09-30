@@ -8,7 +8,6 @@ from TanuMusic.utils.database import (
     get_cmode,
     get_lang,
     is_active_chat,
-    is_commanddelete_on,
     is_maintenance,
     is_nonadmin_chat,
 )

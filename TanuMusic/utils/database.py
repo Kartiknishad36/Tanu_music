@@ -27,6 +27,9 @@ vcdb = mongodb.vc
 videodb = mongodb.videocalls
 notesdb = mongodb.notes
 cardsdb = mongodb.cards
+privatedb = mongodb.private_chats
+maintenancedb = mongodb.maintenance
+cleandb = mongodb.cleanmode
 
 # Active chats
 active = []
@@ -89,14 +92,12 @@ async def get_authuser_names(chat_id: int) -> List[str]:
     return _notes
 
 async def get_authuser(chat_id: int, name: str) -> Union[bool, dict]:
-    name = name
     _notes = await _get_authusers(chat_id)
     if name in _notes:
         return _notes[name]
     return False
 
 async def save_authuser(chat_id: int, name: str, note: dict):
-    name = name
     _notes = await _get_authusers(chat_id)
     _notes[name] = note
     await authuserdb.update_one(
@@ -105,7 +106,6 @@ async def save_authuser(chat_id: int, name: str, note: dict):
 
 async def delete_authuser(chat_id: int, name: str) -> bool:
     notesd = await _get_authusers(chat_id)
-    name = name
     if name in notesd:
         del notesd[name]
         await authuserdb.update_one(
@@ -128,23 +128,17 @@ async def set_assistant_number(chat_id: int, mode: int):
         {"chat_id": chat_id}, {"$set": {"assistant": mode}}, upsert=True
     )
 
-async def get_assistant(chat_id: int) -> str:
+async def get_assistant(chat_id: int):
     assistant = await get_assistant_number(chat_id)
-    return getattr(userbot, f"one" if assistant == 1 else f"{['one','two','three','four','five'][assistant-1]}", userbot.one)
+    names = ["one", "two", "three", "four", "five", "six", "seven"]
+    name = names[assistant - 1] if 1 <= assistant <= 7 else "one"
+    return getattr(userbot, name, getattr(userbot, "one", None))
 
 async def group_assistant(call, chat_id: int):
     assistant = await get_assistant_number(chat_id)
-    if assistant == 1:
-        return call.one
-    elif assistant == 2:
-        return call.two
-    elif assistant == 3:
-        return call.three
-    elif assistant == 4:
-        return call.four
-    elif assistant == 5:
-        return call.five
-    return call.one
+    mapping = {1: call.one, 2: getattr(call, "two", call.one), 3: getattr(call, "three", call.one),
+               4: getattr(call, "four", call.one), 5: getattr(call, "five", call.one)}
+    return mapping.get(assistant, call.one)
 
 # Blacklist
 async def blacklisted_chats() -> list:
@@ -163,7 +157,7 @@ async def whitelist_chat(chat_id: int) -> bool:
         return True
     return False
 
-# Blocked users
+# Gban
 async def get_gbanned() -> list:
     results = []
     async for user in gbandb.find({"user_id": {"$gt": 0}}):
@@ -181,37 +175,39 @@ async def remove_gban_user(user_id: int):
     if await is_gbanned_user(user_id):
         return await gbandb.delete_one({"user_id": user_id})
 
-# Served chats / users
+# Served
 async def is_served_chat(chat_id: int) -> bool:
-    chat = await chatsdb.find_one({"chat_id": chat_id})
-    return bool(chat)
+    return bool(await chatsdb.find_one({"chat_id": chat_id}))
 
 async def get_served_chats() -> list:
     chats = chatsdb.find({"chat_id": {"$lt": 0}})
     return [chat["chat_id"] async for chat in chats]
 
 async def add_served_chat(chat_id: int):
-    is_served = await is_served_chat(chat_id)
-    if not is_served:
+    if not await is_served_chat(chat_id):
         return await chatsdb.insert_one({"chat_id": chat_id})
 
 async def remove_served_chat(chat_id: int):
-    is_served = await is_served_chat(chat_id)
-    if is_served:
+    if await is_served_chat(chat_id):
         return await chatsdb.delete_one({"chat_id": chat_id})
 
 async def is_served_user(user_id: int) -> bool:
-    user = await usersdb.find_one({"user_id": user_id})
-    return bool(user)
+    return bool(await usersdb.find_one({"user_id": user_id}))
 
 async def get_served_users() -> list:
     users = usersdb.find({"user_id": {"$gt": 0}})
     return [user["user_id"] async for user in users]
 
 async def add_served_user(user_id: int):
-    is_served = await is_served_user(user_id)
-    if not is_served:
+    if not await is_served_user(user_id):
         return await usersdb.insert_one({"user_id": user_id})
+
+async def is_served_private_chat(chat_id: int) -> bool:
+    return bool(await privatedb.find_one({"chat_id": chat_id}))
+
+async def add_private_chat(chat_id: int):
+    if not await is_served_private_chat(chat_id):
+        return await privatedb.insert_one({"chat_id": chat_id})
 
 # Sudoers
 async def get_sudoers() -> list:
@@ -222,7 +218,8 @@ async def get_sudoers() -> list:
 
 async def add_sudo(user_id: int) -> bool:
     sudoers = await get_sudoers()
-    sudoers.append(user_id)
+    if user_id not in sudoers:
+        sudoers.append(user_id)
     await sudoersdb.update_one(
         {"sudo": "sudo"}, {"$set": {"sudoers": sudoers}}, upsert=True
     )
@@ -230,7 +227,8 @@ async def add_sudo(user_id: int) -> bool:
 
 async def remove_sudo(user_id: int) -> bool:
     sudoers = await get_sudoers()
-    sudoers.remove(user_id)
+    if user_id in sudoers:
+        sudoers.remove(user_id)
     await sudoersdb.update_one(
         {"sudo": "sudo"}, {"$set": {"sudoers": sudoers}}, upsert=True
     )
@@ -261,16 +259,16 @@ async def set_playtype(chat_id: int, mode: str):
 
 # Autoend
 async def is_autoend() -> bool:
-    chat = await autoenddb.find_one({"autoend": "on"})
-    return bool(chat)
+    return bool(await autoenddb.find_one({"autoend": "on"}))
 
 async def autoend_on():
-    return await autoenddb.insert_one({"autoend": "on"})
+    if not await is_autoend():
+        return await autoenddb.insert_one({"autoend": "on"})
 
 async def autoend_off():
     return await autoenddb.delete_one({"autoend": "on"})
 
-# Loop / music on-off
+# Loop / music
 loop = {}
 
 async def get_loop(chat_id: int) -> int:
@@ -280,13 +278,11 @@ async def set_loop(chat_id: int, mode: int):
     loop[chat_id] = mode
 
 async def music_on(chat_id: int):
-    onoff = await onoffdb.find_one({"chat_id": chat_id})
-    if not onoff:
+    if not await is_music_playing(chat_id):
         return await onoffdb.insert_one({"chat_id": chat_id})
 
 async def music_off(chat_id: int):
-    onoff = await onoffdb.find_one({"chat_id": chat_id})
-    if onoff:
+    if await is_music_playing(chat_id):
         return await onoffdb.delete_one({"chat_id": chat_id})
 
 async def is_music_playing(chat_id: int) -> bool:
@@ -294,7 +290,6 @@ async def is_music_playing(chat_id: int) -> bool:
 
 # Lang
 async def get_lang(chat_id: int) -> str:
-    from strings import get_string
     chat = await chatsdb.find_one({"chat_id": chat_id})
     if chat and "lang" in chat:
         return chat["lang"]
@@ -306,7 +301,7 @@ async def set_lang(chat_id: int, lang: str):
     )
 
 # Channel play
-async def get_cmode(chat_id: int) -> int:
+async def get_cmode(chat_id: int):
     mode = await channeldb.find_one({"chat_id": chat_id})
     if not mode:
         return None
@@ -317,7 +312,7 @@ async def set_cmode(chat_id: int, mode: int):
         {"chat_id": chat_id}, {"$set": {"mode": mode}}, upsert=True
     )
 
-# Skip / cleanmode stubs
+# Skip
 async def is_skip(chat_id: int) -> bool:
     return bool(await skipdb.find_one({"chat_id": chat_id}))
 
@@ -329,7 +324,38 @@ async def skip_off(chat_id: int):
     if await is_skip(chat_id):
         return await skipdb.delete_one({"chat_id": chat_id})
 
-# Cards (fun)
+# Maintenance
+async def is_maintenance() -> bool:
+    # True = bot is ONLINE (not under maintenance)
+    maintenance = await maintenancedb.find_one({"maintenance": "on"})
+    return not bool(maintenance)
+
+async def maintenance_on():
+    if await is_maintenance():
+        return await maintenancedb.insert_one({"maintenance": "on"})
+
+async def maintenance_off():
+    return await maintenancedb.delete_one({"maintenance": "on"})
+
+# Command delete / cleanmode
+async def is_commanddelete_on(chat_id: int) -> bool:
+    # default True (delete command messages)
+    chat = await cleandb.find_one({"chat_id": chat_id})
+    if not chat:
+        return True
+    return chat.get("clean", True)
+
+async def commanddelete_on(chat_id: int):
+    await cleandb.update_one(
+        {"chat_id": chat_id}, {"$set": {"clean": True}}, upsert=True
+    )
+
+async def commanddelete_off(chat_id: int):
+    await cleandb.update_one(
+        {"chat_id": chat_id}, {"$set": {"clean": False}}, upsert=True
+    )
+
+# Cards
 async def is_card_exists(cc: str) -> bool:
     return bool(await cardsdb.find_one({"cc": cc}))
 
@@ -338,7 +364,17 @@ async def add_card(cc: str):
         return await cardsdb.insert_one({"cc": cc})
 
 async def remove_card(cc: str):
-    is_exist = await is_card_exists(cc)
-    if not is_exist:
-        return
-    return await cardsdb.delete_one({"cc": cc})
+    if await is_card_exists(cc):
+        return await cardsdb.delete_one({"cc": cc})
+
+# On/Off global
+async def is_on_off(on_off: int) -> bool:
+    return bool(await onoffdb.find_one({"on_off": on_off}))
+
+async def add_on(on_off: int):
+    if not await is_on_off(on_off):
+        return await onoffdb.insert_one({"on_off": on_off})
+
+async def add_off(on_off: int):
+    if await is_on_off(on_off):
+        return await onoffdb.delete_one({"on_off": on_off})

@@ -1,3 +1,49 @@
+import re
+from pyrogram.types import InlineKeyboardButton
+
+BTN_URL_REGEX = re.compile(
+    r"(\[([^\[]+?)\]\(buttonurl:(?:/{0,2})(.+?)(:same)?\))"
+)
+
+
+def button_markdown_parser(text):
+    markdown_note = text
+    text_data = ""
+    buttons = []
+    if markdown_note is None:
+        return text_data, buttons
+    if markdown_note.startswith("/"):
+        args = markdown_note.split(None, 2)
+        if len(args) >= 3:
+            markdown_note = args[2]
+        else:
+            return text_data, buttons
+    prev = 0
+    for match in BTN_URL_REGEX.finditer(markdown_note):
+        n_escapes = 0
+        to_check = match.start(1) - 1
+        while to_check > 0 and markdown_note[to_check] == "\\":
+            n_escapes += 1
+            to_check -= 1
+        if n_escapes % 2 == 0:
+            if bool(match.group(4)) and buttons:
+                buttons[-1].append(
+                    InlineKeyboardButton(text=match.group(2), url=match.group(3))
+                )
+            else:
+                buttons.append(
+                    [InlineKeyboardButton(text=match.group(2), url=match.group(3))]
+                )
+            text_data += markdown_note[prev : match.start(1)]
+            prev = match.end(1)
+        else:
+            text_data += markdown_note[prev:to_check]
+            prev = match.start(1) - 1
+    else:
+        text_data += markdown_note[prev:]
+    return text_data, buttons
+
+
 from enum import IntEnum, unique
 
 
@@ -12,7 +58,6 @@ class Types(IntEnum):
     VOICE = 7
     VIDEO_NOTE = 8
     ANIMATION = 9
-    ANIMATED_STICKER = 10
     CONTACT = 11
 
 
@@ -37,24 +82,4 @@ def get_message_type(msg):
         return Types.ANIMATION
     if msg.contact:
         return Types.CONTACT
-    return None
-
-
-def get_file_id(msg):
-    if msg.document:
-        return msg.document.file_id
-    if msg.photo:
-        return msg.photo[-1].file_id if msg.photo else None
-    if msg.video:
-        return msg.video.file_id
-    if msg.audio:
-        return msg.audio.file_id
-    if msg.voice:
-        return msg.voice.file_id
-    if msg.video_note:
-        return msg.video_note.file_id
-    if msg.animation:
-        return msg.animation.file_id
-    if msg.sticker:
-        return msg.sticker.file_id
     return None

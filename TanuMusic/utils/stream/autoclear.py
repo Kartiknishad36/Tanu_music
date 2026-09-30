@@ -1,17 +1,32 @@
 import os
 
-from config import autoclean
+try:
+    from config import autoclean
+except ImportError:
+    autoclean = []
+
+if not isinstance(autoclean, list):
+    autoclean = []
 
 
 async def auto_clean(popped):
     try:
-        rem = popped["file"]
-        autoclean.remove(rem)
-        count = autoclean.count(rem)
+        if not popped:
+            return
+        rem = popped.get("file") if isinstance(popped, dict) else None
+        if not rem:
+            return
+        try:
+            while rem in autoclean:
+                autoclean.remove(rem)
+        except ValueError:
+            pass
+        count = autoclean.count(rem) if isinstance(autoclean, list) else 0
         if count == 0:
-            if "vid_" not in rem or "live_" not in rem or "index_" not in rem:
+            if not ("vid_" in str(rem) or "live_" in str(rem) or "index_" in str(rem)):
                 try:
-                    os.remove(rem)
+                    if os.path.isfile(rem):
+                        os.remove(rem)
                 except Exception:
                     pass
     except Exception:

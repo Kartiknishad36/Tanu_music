@@ -3,6 +3,7 @@ import importlib
 
 from pyrogram import idle
 from pytgcalls.exceptions import NoActiveGroupCall
+from pyrogram.errors import FloodWait
 
 import config
 from TanuMusic import LOGGER, app, userbot
@@ -33,25 +34,61 @@ async def init():
             BANNED_USERS.add(user_id)
     except Exception:
         pass
-    await app.start()
+
+    # Bot start with FloodWait handling
+    while True:
+        try:
+            await app.start()
+            break
+        except FloodWait as e:
+            wait = int(e.value) if hasattr(e, "value") else int(getattr(e, "x", 60))
+            LOGGER(__name__).warning(f"FloodWait {wait}s — sleeping (do not restart)...")
+            await asyncio.sleep(wait + 5)
+        except Exception as e:
+            LOGGER(__name__).error(f"Bot start failed: {e}")
+            raise
+
+    # Load plugins one-by-one (skip broken ones)
     for all_module in ALL_MODULES:
-        importlib.import_module("TanuMusic.plugins" + all_module)
-    LOGGER("TanuMusic.plugins").info("All Features Loaded — Tanu Music")
-    await userbot.start()
-    await BABY.start()
+        try:
+            importlib.import_module("TanuMusic.plugins" + all_module)
+        except Exception as e:
+            LOGGER("TanuMusic.plugins").error(
+                f"Skipped plugin {all_module}: {type(e).__name__}: {e}"
+            )
+    LOGGER("TanuMusic.plugins").info("Plugins loaded — Tanu Music")
+
+    try:
+        await userbot.start()
+    except Exception as e:
+        LOGGER(__name__).warning(f"Userbot start issue: {e}")
+
+    try:
+        await BABY.start()
+    except Exception as e:
+        LOGGER(__name__).warning(f"PyTgCalls start issue: {e}")
+
     try:
         await BABY.stream_call("https://te.legra.ph/file/29f784eb49d230ab62e9e.mp4")
     except NoActiveGroupCall:
         LOGGER("TanuMusic").warning(
-            "Log group VC not active — bot continues (start VC in LOGGER group for full features)."
+            "Log group VC not active — bot continues."
         )
     except Exception:
         pass
-    await BABY.decorators()
+
+    try:
+        await BABY.decorators()
+    except Exception as e:
+        LOGGER(__name__).warning(f"decorators: {e}")
+
     LOGGER("TanuMusic").info("Tanu Music started successfully")
     await idle()
     await app.stop()
-    await userbot.stop()
+    try:
+        await userbot.stop()
+    except Exception:
+        pass
     LOGGER("TanuMusic").info("Tanu Music stopped.")
 
 

@@ -1,7 +1,13 @@
-from pyrogram import types
-from TanuMusic import app
+from pyrogram import filters
+from pyrogram.types import InlineQuery
 
-@app.on_inline_query(~app.bl_users)
-async def inline_query_handler(_, query: types.InlineQuery):
-    # Inline search optional — enable later with yt-dlp
-    await query.answer([], cache_time=1)
+from TanuMusic import app
+from config import BANNED_USERS
+
+
+@app.on_inline_query(~BANNED_USERS)
+async def inline_query_handler(_, query: InlineQuery):
+    try:
+        await query.answer([], cache_time=1)
+    except Exception:
+        pass

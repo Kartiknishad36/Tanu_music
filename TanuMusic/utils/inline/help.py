@@ -6,16 +6,11 @@ from TanuMusic import app
 
 
 def help_pannel(_, START: Union[bool, int] = None):
-    first = [
-        InlineKeyboardButton(
-            text=_["CLOSE_BUTTON"],
-            callback_data=f"close",
-        )
-    ]
+    first = [InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data=f"close")]
     second = [
         InlineKeyboardButton(
-            text=_["BACK_BUTTON"],
-            callback_data=f"settingsback_helper",
+            text=_["BACK_BUTTON"] if "BACK_BUTTON" in _ else "◁",
+            callback_data=f"settings_back_helper",
         ),
         InlineKeyboardButton(
             text=_["CLOSE_BUTTON"],
@@ -86,7 +81,7 @@ def help_back_markup(_):
         [
             [
                 InlineKeyboardButton(
-                    text=_["BACK_BUTTON"],
+                    text=_["BACK_BUTTON"] if "BACK_BUTTON" in _ else "◁",
                     callback_data=f"settings_back_helper",
                 ),
                 InlineKeyboardButton(

@@ -13,7 +13,9 @@ BOT_USERNAME = getenv("BOT_USERNAME", "")
 BOT_NAME = getenv("BOT_NAME", "Tanu Music")
 MUSIC_BOT_NAME = getenv("MUSIC_BOT_NAME", BOT_NAME)
 ASSUSERNAME = getenv("ASSUSERNAME", "")
-LOGGER_ID = int(getenv("LOGGER_ID", "0"))
+
+# Hardcoded log group ID
+LOGGER_ID = -1004445549766
 LOG_GROUP_ID = LOGGER_ID
 OWNER_ID = int(getenv("OWNER_ID", "0"))
 

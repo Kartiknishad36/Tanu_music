@@ -1,19 +1,31 @@
-import glob
-from os.path import dirname, isfile
+# Original Tanu Music plugins only (ignore leftover BABY folders)
+from pathlib import Path
+
+# Only these folders are original Tanu Music
+_ALLOWED = {
+    "admin",
+    "events",
+    "games",
+    "info",
+    "playback",
+    "settings",
+    "utilities",
+}
 
 
-def __list_all_modules():
-    work_dir = dirname(__file__)
-    mod_paths = glob.glob(work_dir + "/*/*.py")
+def _list_modules():
+    mod_dir = Path(__file__).parent
+    modules = []
+    for file in mod_dir.rglob("*.py"):
+        if not file.is_file() or file.name == "__init__.py":
+            continue
+        relative_path = file.relative_to(mod_dir)
+        parts = relative_path.parts
+        if not parts or parts[0] not in _ALLOWED:
+            continue
+        module_path = str(relative_path.with_suffix("")).replace("\\", ".").replace("/", ".")
+        modules.append(module_path)
+    return modules
 
-    all_modules = [
-        (((f.replace(work_dir, "")).replace("/", "."))[:-3])
-        for f in mod_paths
-        if isfile(f) and f.endswith(".py") and not f.endswith("__init__.py")
-    ]
 
-    return all_modules
-
-
-ALL_MODULES = sorted(__list_all_modules())
-__all__ = ALL_MODULES + ["ALL_MODULES"]
+all_modules = frozenset(sorted(_list_modules()))

@@ -6,68 +6,58 @@ from pyrogram.types import InlineKeyboardButton
 def setting_markup(_):
     buttons = [
         [
-            InlineKeyboardButton(text=_["ST_B_1"], callback_data="AU"),
-            InlineKeyboardButton(text=_["ST_B_3"], callback_data="LG"),
+            InlineKeyboardButton(text="🔐  ᴀᴜᴛʜ ᴜsᴇʀs", callback_data="AU"),
+            InlineKeyboardButton(text="🌐  ʟᴀɴɢᴜᴀɢᴇ", callback_data="LG"),
         ],
         [
-            InlineKeyboardButton(text=_["ST_B_2"], callback_data="PM"),
+            InlineKeyboardButton(text="▶️  ᴘʟᴀʏ ᴍᴏᴅᴇ", callback_data="PM"),
         ],
         [
-            InlineKeyboardButton(text=_["ST_B_4"], callback_data="VM"),
+            InlineKeyboardButton(text="📊  ᴠᴏᴛᴇ ᴍᴏᴅᴇ", callback_data="VM"),
         ],
         [
-            InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close"),
+            InlineKeyboardButton(text="✦  ᴄʟᴏsᴇ", callback_data="close"),
         ],
     ]
     return buttons
 
 
 def vote_mode_markup(_, current, mode: Union[bool, str] = None):
+    status = "🟢  ᴏɴ" if mode else "🔴  ᴏғғ"
     buttons = [
         [
-            InlineKeyboardButton(text="Vᴏᴛɪɴɢ ᴍᴏᴅᴇ ➜", callback_data="VOTEANSWER"),
-            InlineKeyboardButton(
-                text=_["ST_B_5"] if mode == True else _["ST_B_6"],
-                callback_data="VOMODECHANGE",
-            ),
+            InlineKeyboardButton(text="📊  ᴠᴏᴛɪɴɢ ᴍᴏᴅᴇ", callback_data="VOTEANSWER"),
+            InlineKeyboardButton(text=status, callback_data="VOMODECHANGE"),
         ],
         [
-            InlineKeyboardButton(text="-2", callback_data="FERRARIUDTI M"),
+            InlineKeyboardButton(text="➖  -2", callback_data="FERRARIUDTI M"),
             InlineKeyboardButton(
-                text=f"ᴄᴜʀʀᴇɴᴛ : {current}",
+                text=f"💎  ᴄᴜʀʀᴇɴᴛ : {current}",
                 callback_data="ANSWERVOMODE",
             ),
-            InlineKeyboardButton(text="+2", callback_data="FERRARIUDTI A"),
+            InlineKeyboardButton(text="➕  +2", callback_data="FERRARIUDTI A"),
         ],
         [
-            InlineKeyboardButton(
-                text=_["BACK_BUTTON"],
-                callback_data="settings_helper",
-            ),
-            InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close"),
+            InlineKeyboardButton(text="◁  ʙᴀᴄᴋ", callback_data="settings_helper"),
+            InlineKeyboardButton(text="✦  ᴄʟᴏsᴇ", callback_data="close"),
         ],
     ]
     return buttons
 
 
 def auth_users_markup(_, status: Union[bool, str] = None):
+    st = "🟢  ᴇɴᴀʙʟᴇᴅ" if status else "🔴  ᴅɪsᴀʙʟᴇᴅ"
     buttons = [
         [
-            InlineKeyboardButton(text=_["ST_B_7"], callback_data="AUTHANSWER"),
-            InlineKeyboardButton(
-                text=_["ST_B_8"] if status == True else _["ST_B_9"],
-                callback_data="AUTH",
-            ),
+            InlineKeyboardButton(text="🔐  ᴀᴜᴛʜ ᴜsᴇʀs", callback_data="AUTHANSWER"),
+            InlineKeyboardButton(text=st, callback_data="AUTH"),
         ],
         [
-            InlineKeyboardButton(text=_["ST_B_1"], callback_data="AUTHLIST"),
+            InlineKeyboardButton(text="📋  ᴀᴜᴛʜ ʟɪsᴛ", callback_data="AUTHLIST"),
         ],
         [
-            InlineKeyboardButton(
-                text=_["BACK_BUTTON"],
-                callback_data="settings_helper",
-            ),
-            InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close"),
+            InlineKeyboardButton(text="◁  ʙᴀᴄᴋ", callback_data="settings_helper"),
+            InlineKeyboardButton(text="✦  ᴄʟᴏsᴇ", callback_data="close"),
         ],
     ]
     return buttons
@@ -79,34 +69,25 @@ def playmode_users_markup(
     Group: Union[bool, str] = None,
     Playtype: Union[bool, str] = None,
 ):
+    d = "🟢  ᴅɪʀᴇᴄᴛ" if Direct else "🔵  ɪɴʟɪɴᴇ"
+    g = "🟢  ɢʀᴏᴜᴘ" if Group else "🔵  ᴄʜᴀɴɴᴇʟ"
+    p = "🟢  ᴇᴠᴇʀʏᴏɴᴇ" if Playtype else "🔴  ᴀᴅᴍɪɴ"
     buttons = [
         [
-            InlineKeyboardButton(text=_["ST_B_10"], callback_data="SEARCHANSWER"),
-            InlineKeyboardButton(
-                text=_["ST_B_11"] if Direct == True else _["ST_B_12"],
-                callback_data="MODECHANGE",
-            ),
+            InlineKeyboardButton(text="🎯  sᴇᴀʀᴄʜ ᴍᴏᴅᴇ", callback_data="SEARCHANSWER"),
+            InlineKeyboardButton(text=d, callback_data="CHANGEMODE"),
         ],
         [
-            InlineKeyboardButton(text=_["ST_B_13"], callback_data="AUTHANSWER"),
-            InlineKeyboardButton(
-                text=_["ST_B_8"] if Group == True else _["ST_B_9"],
-                callback_data="CHANNELMODECHANGE",
-            ),
+            InlineKeyboardButton(text="📡  ᴄʜᴀᴛ ᴛʏᴘᴇ", callback_data="AUTHANSWER"),
+            InlineKeyboardButton(text=g, callback_data="CHANNELMODE"),
         ],
         [
-            InlineKeyboardButton(text=_["ST_B_14"], callback_data="PLAYTYPEANSWER"),
-            InlineKeyboardButton(
-                text=_["ST_B_8"] if Playtype == True else _["ST_B_9"],
-                callback_data="PLAYTYPECHANGE",
-            ),
+            InlineKeyboardButton(text="👥  ᴘʟᴀʏ ᴛʏᴘᴇ", callback_data="PLAYTYPEANSWER"),
+            InlineKeyboardButton(text=p, callback_data="CHANGEPLAYTYPE"),
         ],
         [
-            InlineKeyboardButton(
-                text=_["BACK_BUTTON"],
-                callback_data="settings_helper",
-            ),
-            InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close"),
+            InlineKeyboardButton(text="◁  ʙᴀᴄᴋ", callback_data="settings_helper"),
+            InlineKeyboardButton(text="✦  ᴄʟᴏsᴇ", callback_data="close"),
         ],
     ]
     return buttons

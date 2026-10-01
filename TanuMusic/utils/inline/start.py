@@ -10,27 +10,27 @@ def start_panel(_):
     buttons = [
         [
             InlineKeyboardButton(
-                text=_.get("S_B_1", "➕ Add to Group"),
+                text="🟣  ᴀᴅᴅ ᴛᴏ ɢʀᴏᴜᴘ",
                 url=f"https://t.me/{app.username}?startgroup=true",
             ),
             InlineKeyboardButton(
-                text=_.get("S_B_2", "Support"),
+                text="💬  sᴜᴘᴘᴏʀᴛ",
                 url=config.SUPPORT_CHAT,
             ),
         ],
         [
             InlineKeyboardButton(
-                text=_.get("S_B_4", "Channel"),
+                text="📢  ᴄʜᴀɴɴᴇʟ",
                 url=config.SUPPORT_CHANNEL,
             ),
             InlineKeyboardButton(
-                text=_.get("S_B_5", "Owner"),
+                text="👑  ᴏᴡɴᴇʀ",
                 url=f"https://t.me/{(config.OWNER_USERNAME or 'KARTIK_NISHAD_3').lstrip('@')}",
             ),
         ],
         [
             InlineKeyboardButton(
-                text=_.get("CLOSE_BUTTON", "Close"),
+                text="✦  ᴄʟᴏsᴇ",
                 callback_data="close",
             ),
         ],
@@ -45,37 +45,37 @@ def private_panel(_, BOT_USERNAME=None, OWNER: Union[bool, int] = None):
     buttons = [
         [
             InlineKeyboardButton(
-                text=_.get("S_B_3", "➕ Add me to your Group"),
+                text="✨  ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ  ✨",
                 url=f"https://t.me/{uname}?startgroup=true",
             )
         ],
         [
             InlineKeyboardButton(
-                text=_.get("S_B_8", "⚙️ Help & Commands"),
+                text="⚙️  ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅs",
                 callback_data="settings_back_helper",
             ),
             InlineKeyboardButton(
-                text=_.get("S_B_1", "📢 Channel"),
+                text="📢  ᴄʜᴀɴɴᴇʟ",
                 url=config.SUPPORT_CHANNEL,
             ),
         ],
         [
             InlineKeyboardButton(
-                text=_.get("S_B_2", "💬 Support"),
+                text="💬  sᴜᴘᴘᴏʀᴛ",
                 url=config.SUPPORT_CHAT,
             ),
             InlineKeyboardButton(
-                text=_.get("S_B_5", "👤 Owner"),
+                text="👑  ᴏᴡɴᴇʀ",
                 url=f"https://t.me/{owner}",
             ),
         ],
         [
             InlineKeyboardButton(
-                text=_.get("S_B_6", "🧾 Source"),
+                text="💎  sᴏᴜʀᴄᴇ",
                 url=config.UPSTREAM_REPO or "https://github.com/Kartiknishad36/Tanu_music",
             ),
             InlineKeyboardButton(
-                text=_.get("CLOSE_BUTTON", "🗑 Close"),
+                text="🗑  ᴄʟᴏsᴇ",
                 callback_data="close",
             ),
         ],

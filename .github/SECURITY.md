@@ -1,1 +1,0 @@
-# Security Policy\n\nReport security issues to the owner.\n

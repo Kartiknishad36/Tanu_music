@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup
 
 import config
 from TanuMusic import Carbon, YouTube, app
-from TanuMusic.core.call import Call
+from TanuMusic.core.call import BABY
 from TanuMusic.misc import db
 from TanuMusic.utils.database import (
     add_active_chat,
@@ -39,26 +39,26 @@ async def stream(
         if not await is_video_allowed(chat_id):
             raise AssistantErr("Video play is not allowed in this chat.")
     if forceplay:
-        await Call.force_stop_stream(chat_id)
+        await BABY.force_stop_stream(chat_id)
     if streamtype == "playlist":
         msg = f"**Queued Playlist**\n\n"
         count = 0
         for search in result:
-            if int(count) == config.PLAYLIST_LIMIT:
+            if int(count) == getattr(config, "PLAYLIST_FETCH_LIMIT", 25):
                 break
             try:
                 title, duration_min, duration_sec, thumbnail, vidid = search
-            except:
-                continue
-            if str(duration_min) == "None":
-                continue
-            if duration_sec > config.DURATION_LIMIT:
-                continue
-            if await is_active_chat(chat_id):
+                if str(duration_min) == "None":
+                    continue
+                if duration_sec > config.DURATION_LIMIT:
+                    continue
+                file_path = await YouTube.download(
+                    vidid, mystic, video=bool(video), videoid=True
+                )
                 await put_queue(
                     chat_id,
                     original_chat_id,
-                    f"vid_{vidid}",
+                    file_path if file_path else vidid,
                     title,
                     duration_min,
                     user_name,
@@ -66,67 +66,25 @@ async def stream(
                     user_id,
                     "video" if video else "audio",
                 )
-                position = len(db.get(chat_id)) - 1
                 count += 1
-                msg += f"{count}. {title[:30]}\n"
-                msg += f"   └ Position: {position}\n\n"
-            else:
-                if not forceplay:
-                    db[chat_id] = []
-                status = True if video else None
-                try:
-                    file_path, direct = await YouTube.download(
-                        vidid, mystic, video=status, videoid=True
-                    )
-                except Exception:
-                    return await mystic.edit_text("Failed to download from YouTube.")
-                await Call.join_call(
-                    chat_id, original_chat_id, file_path, video=status
-                )
-                await put_queue(
-                    chat_id,
-                    original_chat_id,
-                    file_path if direct else f"vid_{vidid}",
-                    title,
-                    duration_min,
-                    user_name,
-                    vidid,
-                    user_id,
-                    "video" if video else "audio",
-                    forceplay=forceplay,
-                )
-                img = await gen_thumb(vidid, user_id)
-                button = stream_markup({}, vidid)
-                run = await app.send_photo(
-                    original_chat_id,
-                    photo=img,
-                    caption=f"**Streaming**\n\n**Title:** [{title[:27]}](https://t.me/{app.username}?start=info_{vidid})\n**Duration:** {duration_min}\n**By:** {user_name}",
-                    reply_markup=InlineKeyboardMarkup(button),
-                )
-                db[chat_id][0]["mystic"] = run
-                db[chat_id][0]["markup"] = "stream"
-        if count == 0:
-            return
-        else:
-            await mystic.edit_text(msg)
-            return
+                msg += f"{count}. {title[:40]}\n"
+            except Exception:
+                continue
+        await mystic.edit_text(msg or "Playlist queued.")
+        return
+
     elif streamtype == "youtube":
         link = result["link"]
         vidid = result["vidid"]
         title = (result["title"]).title()
         duration_min = result["duration_min"]
         status = True if video else None
-        try:
-            file_path, direct = await YouTube.download(
-                vidid, mystic, videoid=True, video=status
-            )
-        except Exception:
-            return await mystic.edit_text("Failed to process YouTube track.")
+        file_path = await YouTube.download(vidid, mystic, videoid=True, video=status)
         if await is_active_chat(chat_id):
             await put_queue(
                 chat_id,
                 original_chat_id,
-                file_path if direct else f"vid_{vidid}",
+                file_path if file_path else vidid,
                 title,
                 duration_min,
                 user_name,
@@ -136,18 +94,21 @@ async def stream(
             )
             position = len(db.get(chat_id)) - 1
             await mystic.edit_text(
-                f"**Added to Queue**\n\n**Title:** {title[:27]}\n**Position:** {position}"
+                f"**Added to queue** at position **#{position}**\n\n**Title:** {title}\n**Duration:** {duration_min}\n**Requested by:** {user_name}"
             )
         else:
             if not forceplay:
                 db[chat_id] = []
-            await Call.join_call(
-                chat_id, original_chat_id, file_path, video=status
+            await BABY.join_call(
+                chat_id,
+                original_chat_id,
+                file_path if file_path else vidid,
+                video=status,
             )
             await put_queue(
                 chat_id,
                 original_chat_id,
-                file_path if direct else f"vid_{vidid}",
+                file_path if file_path else vidid,
                 title,
                 duration_min,
                 user_name,
@@ -156,22 +117,33 @@ async def stream(
                 "video" if video else "audio",
                 forceplay=forceplay,
             )
-            img = await gen_thumb(vidid, user_id)
-            button = stream_markup({}, vidid)
+            img = await gen_thumb(vidid)
+            button = stream_markup(_, chat_id) if False else stream_markup(
+                {}, chat_id
+            )
+            try:
+                from strings import get_string
+                from TanuMusic.utils.database import get_lang
+
+                language = await get_lang(original_chat_id)
+                _ = get_string(language)
+                button = stream_markup(_, chat_id)
+            except Exception:
+                button = stream_markup({}, chat_id)
             run = await app.send_photo(
                 original_chat_id,
-                photo=img,
-                caption=f"**Streaming**\n\n**Title:** [{title[:27]}](https://t.me/{app.username}?start=info_{vidid})\n**Duration:** {duration_min}\n**By:** {user_name}",
+                photo=img if img else config.YOUTUBE_IMG_URL,
+                caption=f"**Now Playing**\n\n**Title:** [{title}]({link})\n**Duration:** {duration_min}\n**Requested by:** {user_name}",
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "stream"
             await mystic.delete()
-    elif streamtype == "telegram":
+
+    elif streamtype == "soundcloud":
         file_path = result["path"]
-        link = result["link"]
-        duration_min = result.get("dur", "00:00")
-        title = result.get("title", "Telegram Media")
+        title = result["title"]
+        duration_min = result.get("duration_min", "00:00")
         if await is_active_chat(chat_id):
             await put_queue(
                 chat_id,
@@ -180,19 +152,56 @@ async def stream(
                 title,
                 duration_min,
                 user_name,
-                "telegram",
+                result.get("id", file_path),
                 user_id,
-                "video" if video else "audio",
+                "audio",
             )
             position = len(db.get(chat_id)) - 1
             await mystic.edit_text(
-                f"**Added to Queue**\n\n**Title:** {title[:27]}\n**Position:** {position}"
+                f"**Added to queue** #{position}\n**Title:** {title}"
             )
         else:
             if not forceplay:
                 db[chat_id] = []
-            await Call.join_call(
-                chat_id, original_chat_id, file_path, video=video
+            await BABY.join_call(chat_id, original_chat_id, file_path, video=None)
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                result.get("id", file_path),
+                user_id,
+                "audio",
+                forceplay=forceplay,
+            )
+            await mystic.edit_text(f"**Now Playing**\n**Title:** {title}")
+
+    elif streamtype == "telegram":
+        file_path = result["path"]
+        link = result.get("link", "")
+        title = result.get("title", "Telegram Media")
+        duration_min = result.get("dur", "00:00")
+        if await is_active_chat(chat_id):
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                file_path,
+                user_id,
+                "video" if video else "audio",
+            )
+            position = len(db.get(chat_id)) - 1
+            await mystic.edit_text(f"**Added to queue** #{position}\n**Title:** {title}")
+        else:
+            if not forceplay:
+                db[chat_id] = []
+            await BABY.join_call(
+                chat_id, original_chat_id, file_path, video=bool(video)
             )
             await put_queue(
                 chat_id,
@@ -201,62 +210,107 @@ async def stream(
                 title,
                 duration_min,
                 user_name,
-                "telegram",
+                file_path,
                 user_id,
                 "video" if video else "audio",
                 forceplay=forceplay,
             )
-            button = telegram_markup({})
+            button = telegram_markup({}, chat_id)
+            try:
+                from strings import get_string
+                from TanuMusic.utils.database import get_lang
+
+                language = await get_lang(original_chat_id)
+                _ = get_string(language)
+                button = telegram_markup(_, chat_id)
+            except Exception:
+                pass
             run = await app.send_photo(
                 original_chat_id,
-                photo=config.TELEGRAM_AUDIO_URL if not video else config.TELEGRAM_VIDEO_URL,
-                caption=f"**Streaming from Telegram**\n\n**Title:** {title[:27]}\n**Duration:** {duration_min}\n**By:** {user_name}",
+                photo=config.TELEGRAM_AUDIO_URL,
+                caption=f"**Now Playing**\n**Title:** {title}\n**Requested by:** {user_name}",
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "tg"
-            await mystic.delete()
-    elif streamtype == "index":
-        link = result
+            try:
+                await mystic.delete()
+            except Exception:
+                pass
+
+    elif streamtype == "live":
+        link = result["link"]
+        vidid = result["vidid"]
+        title = (result["title"]).title()
+        duration_min = "Live"
+        status = True if video else None
         if await is_active_chat(chat_id):
-            await put_queue_index(
+            await put_queue(
                 chat_id,
                 original_chat_id,
-                "index_" + link,
-                "Index Link",
-                "Unknown",
+                link,
+                title,
+                duration_min,
                 user_name,
-                "index",
+                vidid,
                 user_id,
                 "video" if video else "audio",
             )
             position = len(db.get(chat_id)) - 1
-            await mystic.edit_text(f"**Index link added to queue at position {position}**")
+            await mystic.edit_text(f"**Live added to queue** #{position}")
         else:
             if not forceplay:
                 db[chat_id] = []
-            await Call.join_call(
-                chat_id, original_chat_id, link, video=video
+            await BABY.join_call(
+                chat_id, original_chat_id, link, video=status, live=True
             )
-            await put_queue_index(
+            await put_queue(
                 chat_id,
                 original_chat_id,
-                "index_" + link,
-                "Index Link",
-                "Unknown",
+                link,
+                title,
+                duration_min,
                 user_name,
-                "index",
+                vidid,
                 user_id,
                 "video" if video else "audio",
                 forceplay=forceplay,
             )
-            button = telegram_markup({})
-            run = await app.send_photo(
+            await mystic.edit_text(f"**Live streaming started**\n**Title:** {title}")
+
+    else:
+        # index / direct link
+        file_path = result
+        title = "Index Stream"
+        duration_min = "00:00"
+        if await is_active_chat(chat_id):
+            await put_queue_index(
+                chat_id,
                 original_chat_id,
-                photo=config.STREAM_IMG_URL,
-                caption=f"**Streaming Index**\n\n**By:** {user_name}",
-                reply_markup=InlineKeyboardMarkup(button),
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                file_path,
+                "video" if video else "audio",
             )
-            db[chat_id][0]["mystic"] = run
-            db[chat_id][0]["markup"] = "tg"
-            await mystic.delete()
+            position = len(db.get(chat_id)) - 1
+            await mystic.edit_text(f"**Added to queue** #{position}")
+        else:
+            if not forceplay:
+                db[chat_id] = []
+            await BABY.join_call(
+                chat_id, original_chat_id, file_path, video=bool(video)
+            )
+            await put_queue_index(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                file_path,
+                "video" if video else "audio",
+                forceplay=forceplay,
+            )
+            await mystic.edit_text(f"**Now Playing (Index)**")

@@ -45,73 +45,48 @@ class Userbot(Client):
             no_updates=True,
         )
 
+    async def _boot(self, client, num: int):
+        await client.start()
+        me = client.me or await client.get_me()
+        # store id on object for older code that uses .id
+        object.__setattr__(client, "id", me.id)
+        object.__setattr__(client, "name", me.mention or me.first_name)
+        object.__setattr__(client, "username", me.username)
+        assistants.append(num)
+        assistantids.append(me.id)
+        try:
+            await client.send_message(
+                config.LOGGER_ID,
+                f"Assistant {num} Started as {me.mention}",
+            )
+        except Exception:
+            LOGGER(__name__).warning(
+                f"Assistant {num} cannot access LOGGER group. Add assistant to log group."
+            )
+        LOGGER(__name__).info(f"Assistant {num} Started as {me.mention}")
+
     async def start(self):
         LOGGER(__name__).info("Starting assistants...")
         if config.STRING1:
-            await self.one.start()
-            try:
-                await self.one.send_message(config.LOGGER_ID, "Assistant 1 Started")
-            except Exception:
-                LOGGER(__name__).warning("Assistant 1 cannot access LOGGER group.")
-            assistants.append(1)
-            self.one.id = self.one.me.id
-            self.one.name = self.one.me.mention
-            self.one.username = self.one.me.username
-            assistantids.append(self.one.id)
-            LOGGER(__name__).info(f"Assistant 1 Started as {self.one.name}")
-
+            await self._boot(self.one, 1)
         if config.STRING2:
-            await self.two.start()
-            assistants.append(2)
-            try:
-                await self.two.send_message(config.LOGGER_ID, "Assistant 2 Started")
-            except Exception:
-                pass
-            self.two.id = self.two.me.id
-            self.two.name = self.two.me.mention
-            self.two.username = self.two.me.username
-            assistantids.append(self.two.id)
-
+            await self._boot(self.two, 2)
         if config.STRING3:
-            await self.three.start()
-            assistants.append(3)
-            try:
-                await self.three.send_message(config.LOGGER_ID, "Assistant 3 Started")
-            except Exception:
-                pass
-            self.three.id = self.three.me.id
-            self.three.name = self.three.me.mention
-            self.three.username = self.three.me.username
-            assistantids.append(self.three.id)
-
+            await self._boot(self.three, 3)
         if config.STRING4:
-            await self.four.start()
-            assistants.append(4)
-            self.four.id = self.four.me.id
-            self.four.name = self.four.me.mention
-            self.four.username = self.four.me.username
-            assistantids.append(self.four.id)
-
+            await self._boot(self.four, 4)
         if config.STRING5:
-            await self.five.start()
-            assistants.append(5)
-            self.five.id = self.five.me.id
-            self.five.name = self.five.me.mention
-            self.five.username = self.five.me.username
-            assistantids.append(self.five.id)
+            await self._boot(self.five, 5)
+        if not assistants:
+            LOGGER(__name__).error(
+                "No STRING_SESSION found. Assistant will not work. Set STRING_SESSION in Railway."
+            )
 
     async def stop(self):
         LOGGER(__name__).info("Stopping Assistants...")
-        try:
-            if config.STRING1:
-                await self.one.stop()
-            if config.STRING2:
-                await self.two.stop()
-            if config.STRING3:
-                await self.three.stop()
-            if config.STRING4:
-                await self.four.stop()
-            if config.STRING5:
-                await self.five.stop()
-        except Exception:
-            pass
+        for c in (self.one, self.two, self.three, self.four, self.five):
+            try:
+                if c.is_connected:
+                    await c.stop()
+            except Exception:
+                pass

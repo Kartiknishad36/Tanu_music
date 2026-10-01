@@ -27,6 +27,19 @@ from TanuMusic.utils.database import (
 from TanuMusic.utils.inline import botplaylist_markup
 
 
+def _assistant_id(client):
+    """Safe assistant user id (Pyrogram Client has .me.id, not always .id)."""
+    if client is None:
+        return None
+    uid = getattr(client, "id", None)
+    if uid:
+        return uid
+    me = getattr(client, "me", None)
+    if me is not None:
+        return me.id
+    return None
+
+
 def PlayWrapper(command):
     async def wrapper(client, message):
         try:
@@ -73,12 +86,18 @@ def PlayWrapper(command):
                     try:
                         return await message.reply_photo(
                             photo=PLAYLIST_IMG_URL,
-                            caption=_.get("playlist_1", "Usage: /play [song name or youtube link]"),
+                            caption=_.get(
+                                "playlist_1",
+                                "Usage: /play [song name or youtube link]",
+                            ),
                             reply_markup=InlineKeyboardMarkup(buttons),
                         )
                     except Exception:
                         return await message.reply_text(
-                            _.get("playlist_1", "Usage: /play [song name or youtube link]")
+                            _.get(
+                                "playlist_1",
+                                "Usage: /play [song name or youtube link]",
+                            )
                         )
                 return await message.reply_text(
                     _.get("play_18", "Usage: /play [song name or youtube link]")
@@ -91,7 +110,8 @@ def PlayWrapper(command):
 
         video = (
             True
-            if message.command[0][0] in ["v", "c"] and message.command[0][1] not in ["c", "p"]
+            if message.command[0][0] in ["v", "c"]
+            and message.command[0][1] not in ["c", "p"]
             or message.command[0][0:2] in ["cv"]
             else False
         )
@@ -99,7 +119,10 @@ def PlayWrapper(command):
             chat_id = await get_cmode(message.chat.id)
             if chat_id is None:
                 return await message.reply_text(
-                    _.get("cplay_1", "Channel play mode is disabled. Enable with /channelplay")
+                    _.get(
+                        "cplay_1",
+                        "Channel play mode is disabled. Enable with /channelplay",
+                    )
                 )
             try:
                 chat = await app.get_chat(chat_id)
@@ -114,7 +137,10 @@ def PlayWrapper(command):
             playmode = await get_playmode(message.chat.id)
         except Exception:
             playmode = "Direct"
-        playty = await get_playtype(message.chat.id)
+        try:
+            playty = await get_playtype(message.chat.id)
+        except Exception:
+            playty = "Everyone"
         if playty != "Everyone":
             if message.from_user.id not in SUDOERS:
                 admins = adminlist.get(message.chat.id)
@@ -127,29 +153,34 @@ def PlayWrapper(command):
                         _.get("play_4", "Only admins can play.")
                     )
 
-        if message.command[0][0] == "c" or message.command[0][0:2] == "cv":
-            try:
-                await app.get_chat_member(chat_id, app.id)
-            except Exception:
-                return await message.reply_text(
-                    "Bot is not present in the linked channel."
-                )
-
-        # Ensure assistant joins the group for VC
+        # Ensure assistant is in the group
         try:
             userbot = await get_assistant(chat_id)
             if userbot is None:
                 return await message.reply_text(
-                    "No assistant available. Check STRING_SESSION."
+                    "No assistant available. Check STRING_SESSION in Railway."
                 )
+            assist_id = _assistant_id(userbot)
+            if not assist_id:
+                try:
+                    me = await userbot.get_me()
+                    assist_id = me.id
+                    try:
+                        userbot.id = assist_id
+                    except Exception:
+                        pass
+                except Exception as e:
+                    return await message.reply_text(
+                        f"Assistant not started properly: {e}\nCheck STRING_SESSION."
+                    )
             try:
-                await userbot.get_chat_member(chat_id, userbot.id)
+                await userbot.get_chat_member(chat_id, assist_id)
             except UserNotParticipant:
                 try:
                     invite_link = await app.export_chat_invite_link(chat_id)
                 except ChatAdminRequired:
                     return await message.reply_text(
-                        "Give bot invite users permission, then try again."
+                        "Give bot **Invite Users** permission, then try /play again."
                     )
                 except Exception as e:
                     return await message.reply_text(f"Invite link error: {e}")
@@ -157,14 +188,19 @@ def PlayWrapper(command):
                     await userbot.join_chat(invite_link)
                 except InviteRequestSent:
                     return await message.reply_text(
-                        "Assistant join request sent. Approve it and retry /play."
+                        "Assistant join request sent. Approve it in group, then /play again."
                     )
                 except UserAlreadyParticipant:
                     pass
                 except Exception as e:
                     return await message.reply_text(f"Assistant join failed: {e}")
+            except Exception:
+                # member check failed for other reasons — continue, join_call will handle
+                pass
         except Exception as e:
-            return await message.reply_text(f"Assistant error: {type(e).__name__}: {e}")
+            return await message.reply_text(
+                f"Assistant error: {type(e).__name__}: {e}"
+            )
 
         fplay = True if "force" in message.command[0].lower() else None
         return await command(

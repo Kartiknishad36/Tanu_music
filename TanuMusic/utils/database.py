@@ -89,7 +89,7 @@ async def remove_nonadmin_chat(chat_id: int):
 async def _get_authusers(chat_id: int) -> Dict[str, int]:
     _notes = await authuserdb.find_one({"chat_id": chat_id})
     if _notes:
-        return _notes["notes"]
+        return _notes.get("notes", {})
     return {}
 
 
@@ -145,8 +145,22 @@ async def group_assistant(call, chat_id: int):
     return mapping.get(assistant, call.one)
 
 
+async def get_client(chat_id: int):
+    """Return assistant client for chat."""
+    return await get_assistant(chat_id)
+
+
 async def blacklisted_chats() -> list:
     return [chat["chat_id"] async for chat in blacklist_chatdb.find({"chat_id": {"$lt": 0}})]
+
+
+async def blacklist_chat(chat_id: int):
+    if not await blacklist_chatdb.find_one({"chat_id": chat_id}):
+        return await blacklist_chatdb.insert_one({"chat_id": chat_id})
+
+
+async def whitelist_chat(chat_id: int):
+    return await blacklist_chatdb.delete_one({"chat_id": chat_id})
 
 
 async def get_gbanned() -> list:
@@ -187,6 +201,10 @@ async def remove_served_chat(chat_id: int):
 
 async def is_served_user(user_id: int) -> bool:
     return bool(await usersdb.find_one({"user_id": user_id}))
+
+
+async def get_served_users() -> list:
+    return [user["user_id"] async for user in usersdb.find({"user_id": {"$gt": 0}})]
 
 
 async def add_served_user(user_id: int):
@@ -241,6 +259,16 @@ async def is_autoend() -> bool:
     return bool(await autoenddb.find_one({"autoend": "on"}))
 
 
+async def autoend_on():
+    if not await is_autoend():
+        return await autoenddb.insert_one({"autoend": "on"})
+
+
+async def autoend_off():
+    if await is_autoend():
+        return await autoenddb.delete_one({"autoend": "on"})
+
+
 async def get_loop(chat_id: int) -> int:
     return loop.get(chat_id, 0)
 
@@ -288,6 +316,16 @@ async def is_maintenance() -> bool:
     return not bool(maintenance)
 
 
+async def maintenance_on():
+    if await is_maintenance():
+        return await maintenancedb.insert_one({"maintenance": "on"})
+
+
+async def maintenance_off():
+    if not await is_maintenance():
+        return await maintenancedb.delete_one({"maintenance": "on"})
+
+
 async def is_commanddelete_on(chat_id: int) -> bool:
     chat = await cleandb.find_one({"chat_id": chat_id})
     if not chat:
@@ -321,7 +359,16 @@ async def is_on_off(on_off: int) -> bool:
     return bool(await onoffdb.find_one({"on_off": on_off}))
 
 
-# ---- mute / unmute (chat stream mute) ----
+async def add_on(on_off: int):
+    if not await is_on_off(on_off):
+        return await onoffdb.insert_one({"on_off": on_off})
+
+
+async def add_off(on_off: int):
+    if await is_on_off(on_off):
+        return await onoffdb.delete_one({"on_off": on_off})
+
+
 async def is_muted(chat_id: int) -> bool:
     return bool(await mutedb.find_one({"chat_id": chat_id}))
 
@@ -334,3 +381,17 @@ async def mute_on(chat_id: int):
 async def mute_off(chat_id: int):
     if await is_muted(chat_id):
         return await mutedb.delete_one({"chat_id": chat_id})
+
+
+async def is_video_allowed(chat_id: int) -> bool:
+    """Video play allowed unless explicitly disabled."""
+    chat = await videodb.find_one({"chat_id": chat_id})
+    if not chat:
+        return True
+    return chat.get("video", True)
+
+
+async def set_video_allowed(chat_id: int, allowed: bool):
+    await videodb.update_one(
+        {"chat_id": chat_id}, {"$set": {"video": allowed}}, upsert=True
+    )

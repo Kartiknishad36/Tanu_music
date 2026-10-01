@@ -11,6 +11,7 @@ BOT_TOKEN = getenv("BOT_TOKEN", "")
 OWNER_USERNAME = getenv("OWNER_USERNAME", "KARTIK_NISHAD_3")
 BOT_USERNAME = getenv("BOT_USERNAME", "")
 BOT_NAME = getenv("BOT_NAME", "Tanu Music")
+MUSIC_BOT_NAME = getenv("MUSIC_BOT_NAME", BOT_NAME)
 ASSUSERNAME = getenv("ASSUSERNAME", "")
 LOGGER_ID = int(getenv("LOGGER_ID", "0"))
 LOG_GROUP_ID = LOGGER_ID
@@ -79,8 +80,6 @@ confirmer = {}
 chatstats = {}
 userstats = {}
 clean = {}
-
-# MUST be a list (used by autoclear.remove / .count)
 autoclean = []
 
 DOWNLOADS_DEST = getenv("DOWNLOADS_DEST", "downloads")

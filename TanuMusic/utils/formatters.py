@@ -1,6 +1,14 @@
-import json
-import string
-import subprocess
+import os
+import re
+import time
+from typing import Union
+
+formats = [
+    "webm", "mkv", "flv", "vob", "ogv", "ogg", "rrc", "gifv", "mng",
+    "mov", "avi", "qt", "wmv", "yuv", "rm", "asf", "amv", "mp4",
+    "m4p", "m4v", "mpg", "mp2", "mpeg", "mpe", "mpv", "svi", "3gp",
+    "3g2", "mxf", "roq", "nsv", "flv", "f4v", "f4p", "f4a", "f4b",
+]
 
 
 def get_readable_time(seconds: int) -> str:
@@ -10,16 +18,13 @@ def get_readable_time(seconds: int) -> str:
     time_suffix_list = ["s", "m", "h", "days"]
     while count < 4:
         count += 1
-        if count < 3:
-            remainder, result = divmod(seconds, 60)
-        else:
-            remainder, result = divmod(seconds, 24)
+        remainder, result = divmod(seconds, 60) if count < 3 else divmod(seconds, 24)
         if seconds == 0 and remainder == 0:
             break
         time_list.append(int(result))
         seconds = int(remainder)
-    for i in range(len(time_list)):
-        time_list[i] = str(time_list[i]) + time_suffix_list[i]
+    for x in range(len(time_list)):
+        time_list[x] = str(time_list[x]) + time_suffix_list[x]
     if len(time_list) == 4:
         ping_time += time_list.pop() + ", "
     time_list.reverse()
@@ -32,11 +37,11 @@ def convert_bytes(size: float) -> str:
         return ""
     power = 2**10
     n = 0
-    power_labels = {0: " ", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
+    power_labels = {0: "", 1: "K", 2: "M", 3: "G", 4: "T"}
     while size > power:
         size /= power
         n += 1
-    return str(round(size, 2)) + " " + power_labels[n] + "B"
+    return f"{round(size, 2)} {power_labels[n]}B"
 
 
 def time_to_seconds(time):
@@ -49,91 +54,58 @@ def seconds_to_min(seconds):
         seconds = int(seconds)
         d, h, m, s = (
             seconds // (3600 * 24),
-            seconds // 3600 % 24,
-            seconds % 3600 // 60,
-            seconds % 3600 % 60,
+            (seconds // 3600) % 24,
+            (seconds % 3600) // 60,
+            (seconds % 3600) % 60,
         )
         if d > 0:
-            return "{:02d}:{:02d}:{:02d}:{:02d}".format(d, h, m, s)
+            return f"{d:02d}:{h:02d}:{m:02d}:{s:02d}"
         elif h > 0:
-            return "{:02d}:{:02d}:{:02d}".format(h, m, s)
+            return f"{h:02d}:{m:02d}:{s:02d}"
         elif m > 0:
-            return "{:02d}:{:02d}".format(m, s)
-        elif s > 0:
-            return "00:{:02d}".format(s)
-    return "-"
-
-
-def speed_converter(seconds, speed):
-    if str(speed) == str("0.5"):
-        seconds = seconds * 2
-    if str(speed) == str("0.75"):
-        seconds = seconds + ((50 * seconds) // 100)
-    if str(speed) == str("1.5"):
-        seconds = seconds - ((25 * seconds) // 100)
-    if str(speed) == str("2.0"):
-        seconds = seconds - ((50 * seconds) // 100)
-    collect = seconds
-    if seconds is not None:
-        seconds = int(seconds)
-        d, h, m, s = (
-            seconds // (3600 * 24),
-            seconds // 3600 % 24,
-            seconds % 3600 // 60,
-            seconds % 3600 % 60,
-        )
-        if d > 0:
-            convert = "{:02d}:{:02d}:{:02d}:{:02d}".format(d, h, m, s)
-            return convert, collect
-        elif h > 0:
-            convert = "{:02d}:{:02d}:{:02d}".format(h, m, s)
-            return convert, collect
-        elif m > 0:
-            convert = "{:02d}:{:02d}".format(m, s)
-            return convert, collect
-        elif s > 0:
-            convert = "00:{:02d}".format(s)
-            return convert, collect
-    return "-"
-
-
-def check_duration(file_path):
-    command = [
-        "ffprobe",
-        "-loglevel",
-        "quiet",
-        "-print_format",
-        "json",
-        "-show_format",
-        "-show_streams",
-        file_path,
-    ]
-    pipe = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    out, err = pipe.communicate()
-    _json = json.loads(out)
-    if "format" in _json:
-        if "duration" in _json["format"]:
-            return float(_json["format"]["duration"])
-    if "streams" in _json:
-        for s in _json["streams"]:
-            if "duration" in s:
-                return float(s["duration"])
+            return f"{m:02d}:{s:02d}"
+        else:
+            return f"00:{s:02d}"
     return "Unknown"
 
 
+def speed_converter(seconds, speed):
+    if not speed or float(speed) == 1.0:
+        return seconds
+    return int(float(seconds) / float(speed))
+
+
+async def check_duration(file_path):
+    try:
+        import asyncio
+
+        out = await asyncio.create_subprocess_exec(
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            file_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await out.communicate()
+        return float(stdout.decode().strip() or 0)
+    except Exception:
+        return 0
+
+
 def int_to_alpha(user_id: int) -> str:
-    alphabet = list(string.ascii_lowercase)[:10]
-    text = ""
+    alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
     user_id = str(user_id)
-    for i in user_id:
-        text += alphabet[int(i)]
-    return text
+    return "".join(alphabet[int(i)] for i in user_id)
 
 
 def alpha_to_int(user_id_alphabet: str) -> int:
-    alphabet = list(string.ascii_lowercase)[:10]
+    alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
     user_id = ""
     for i in user_id_alphabet:
-        index = alphabet.index(i)
-        user_id += str(index)
+        user_id += str(alphabet.index(i))
     return int(user_id)

@@ -15,7 +15,7 @@ async def play_logs(message, streamtype):
 <b>User:</b> {message.from_user.mention if message.from_user else 0}
 <b>Query:</b> {message.text.split(None, 1)[1] if message.text and len(message.text.split())>1 else ""}
 <b>Stream:</b> {streamtype}"""
-        if message.chat.id != LOGGER_ID:
+        if LOGGER_ID and message.chat.id != LOGGER_ID:
             try:
                 await app.send_message(
                     chat_id=LOGGER_ID,
@@ -25,4 +25,3 @@ async def play_logs(message, streamtype):
                 )
             except Exception:
                 pass
-"""
